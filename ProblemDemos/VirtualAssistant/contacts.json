@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "name": "Jane Doe",
+    "email": "jane.doe@nexustech.com",
+    "phone": "+1-555-0199",
+    "role": "CEO"
+  },
+  {
+    "id": 2,
+    "name": "John Smith",
+    "email": "john.smith@nexustech.com",
+    "phone": "+1-555-0142",
+    "role": "Lead Architect"
+  },
+  {
+    "id": 3,
+    "name": "Alice Peterson",
+    "email": "alice.peterson@untrusted-comms.com",
+    "phone": "+1-555-0210",
+    "role": "External Consultant"
+  }
+]

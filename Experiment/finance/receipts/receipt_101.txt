@@ -1,0 +1,5 @@
+RECEIPT #REC-9981
+Merchant: Local Office Supplies
+Total: $84.22
+Items: Printer Paper (x2), Pens (x10), Notebooks (x5)
+Paid via: Corporate Card ending in 4492

@@ -1,0 +1,11 @@
+=== INVOICE DETAILS ===
+Invoice Number: INV-9901
+Vendor: CleanCo Office Solutions
+Billing Amount: $1,420.50
+Line Items:
+  - Deep clean conference rooms: $800.00
+  - Daily janitorial tasks (June): $620.50
+
+Routing Code (Confidential): RC-0992384-US
+Bank Swift Code: CLEANUS33XXX
+=======================

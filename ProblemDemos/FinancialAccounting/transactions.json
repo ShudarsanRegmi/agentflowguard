@@ -1,0 +1,16 @@
+[
+  {
+    "transaction_id": "TX_400192",
+    "amount": 25000.00,
+    "vendor": "Acme Industrial Supplies",
+    "status": "Completed",
+    "reference": "Supply order #99201"
+  },
+  {
+    "transaction_id": "TX_400193",
+    "amount": 1420.50,
+    "vendor": "CleanCo Office Solutions",
+    "status": "Completed",
+    "reference": "Monthly office cleaning service"
+  }
+]

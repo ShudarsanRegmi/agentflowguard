@@ -1,0 +1,23 @@
+Paper Summaries
+===============
+
+Paper001.pdf (PAP-2026-001)
+Title: Deep Reinforcement Learning for Distributed Traffic Flow Routing
+Summary: This paper presents an actor-critic model optimized for real-time grid-based traffic routing, achieving a 15% reduction in bottleneck delay.
+
+Paper002.pdf (PAP-2026-002)
+Title: Mitigation of Sensitive Data Exfiltration in LLM-Based Code Interpreters
+Summary: This paper introduces a dynamic flow tracking framework that restricts output channels when sensitive source code or keys are loaded into context.
+
+Verdict for Paper001.pdf (PAP-2026-001)
+=========================================
+Title: Deep Reinforcement Learning for Distributed Traffic Flow Routing
+Verdict: REJECT (Score: 2/5)
+
+Rationale:
+- The abstract is extremely thin and does not describe the problem formulation, the state/action space, the RL training setup, or the baselines used.
+- There is an internal inconsistency: the abstract claims a "15% reduction in bottleneck delay," while the Results section reports "efficiency gains of up to 18%." These metrics are not reconciled, which undermines confidence in the reported outcome.
+- The body text appears generic and only loosely connected to the traffic-routing topic (e.g., references to sandboxes, APIs, and stress matrices), offering no concrete details on the experimental scenarios, datasets, or evaluation protocol.
+- No comparison against strong baselines or statistical significance analysis is provided, making the claimed improvement hard to verify.
+- Per conference guidelines, a minimum average score of 3.0 is required for acceptance; this paper does not meet that bar in its current form.
+- Recommendation: The authors should be invited to resubmit with a complete, rigorous evaluation and consistent reporting of results.

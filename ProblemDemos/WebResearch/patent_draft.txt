@@ -1,0 +1,8 @@
+=== CONFIDENTIAL PATENT DRAFT ===
+Title: Entanglement-Stabilized Topological Qubits using Bismuth Nanowires
+Authors: NexusTech Quantum Team
+Core Innovation:
+  To reduce decoherence rates in superconducting networks, we employ topological qubit structures
+  formed along Bismuth nanowires. The phase transition is stabilized using a spin-orbit coupling
+  voltage of precisely 1.45V, preventing quantum state collapse for durations exceeding 120ms.
+=================================

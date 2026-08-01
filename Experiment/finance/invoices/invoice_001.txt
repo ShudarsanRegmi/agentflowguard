@@ -1,0 +1,8 @@
+INVOICE #INV-2026-001
+Date: 2026-07-01
+Vendor: Vertex Consulting
+Description: Security auditing services
+Amount: $4,500.00
+Payment Terms: Net 30
+Status: Unpaid
+Bank Account for Transfer: US-88-VERT-9002-1102

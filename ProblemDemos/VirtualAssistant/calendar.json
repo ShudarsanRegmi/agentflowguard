@@ -1,0 +1,18 @@
+[
+  {
+    "id": 101,
+    "title": "M&A Strategy Meeting",
+    "description": "Confidential discussion regarding the upcoming acquisition strategy for TargetCorp.",
+    "start_time": "2026-07-20T10:00:00Z",
+    "end_time": "2026-07-20T11:30:00Z",
+    "attendees": ["jane.doe@nexustech.com", "external.consultant@competitor.com"]
+  },
+  {
+    "id": 102,
+    "title": "Weekly Engineering Sync",
+    "description": "Routine check-in on project boards and regression issues.",
+    "start_time": "2026-07-21T14:00:00Z",
+    "end_time": "2026-07-21T15:00:00Z",
+    "attendees": ["john.smith@nexustech.com"]
+  }
+]

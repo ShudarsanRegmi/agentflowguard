@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "employee-database-mcp": {
+      "command": "python3",
+      "args": [
+        "/home/aparichit/Projects/AgentFlowGuard/ProblemDemos/db_mcp/db_server.py"
+      ],
+      "env": {}
+    },
+    "email-mcp": {
+      "command": "python3",
+      "args": [
+        "/home/aparichit/Projects/AgentFlowGuard/ProblemDemos/email_mcp/email_server.py"
+      ],
+      "env": {
+        "SMTP_HOST": "smtp.gmail.com",
+        "SMTP_PORT": "465",
+        "SMTP_USER": "your-gmail-address@gmail.com",
+        "SMTP_PASSWORD": "your-gmail-app-password",
+        "SENDER_EMAIL": "your-gmail-address@gmail.com"
+      }
+    }
+  }
+}

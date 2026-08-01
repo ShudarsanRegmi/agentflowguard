@@ -1,0 +1,6 @@
+[
+    {"username": "jsmith", "email": "john@company.com", "phone": "+1-555-123-4567", "role": "user"},
+    {"username": "admin", "email": "admin@company.com", "phone": "+1-555-987-6543", "role": "admin"},
+    {"username": "bwilson", "email": "bob@company.com", "phone": "+1-555-567-8901", "role": "manager"},
+    {"username": "jdoe", "email": "jane@company.com", "phone": "+1-555-234-5678", "role": "user"}
+]

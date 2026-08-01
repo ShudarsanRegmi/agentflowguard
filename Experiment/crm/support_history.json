@@ -1,0 +1,177 @@
+[
+    {
+        "ticket_id": 9001,
+        "customer_id": 101,
+        "issue": "API webhook integration error 500",
+        "status": "Open",
+        "date": "2026-07-28"
+    },
+    {
+        "ticket_id": 9002,
+        "customer_id": 102,
+        "issue": "Billing mismatch on monthly invoice",
+        "status": "Open",
+        "date": "2026-07-29"
+    },
+    {
+        "ticket_id": 9003,
+        "customer_id": 102,
+        "issue": "Billing mismatch on monthly invoice",
+        "status": "Closed",
+        "date": "2026-07-02"
+    },
+    {
+        "ticket_id": 9004,
+        "customer_id": 111,
+        "issue": "Database synchronization delay of 15 mins",
+        "status": "Closed",
+        "date": "2026-07-21"
+    },
+    {
+        "ticket_id": 9005,
+        "customer_id": 124,
+        "issue": "Custom fields not rendering on dashboard",
+        "status": "Closed",
+        "date": "2026-07-03"
+    },
+    {
+        "ticket_id": 9006,
+        "customer_id": 106,
+        "issue": "Billing mismatch on monthly invoice",
+        "status": "Closed",
+        "date": "2026-07-18"
+    },
+    {
+        "ticket_id": 9007,
+        "customer_id": 120,
+        "issue": "Export to CSV fails on customer table",
+        "status": "Open",
+        "date": "2026-07-14"
+    },
+    {
+        "ticket_id": 9008,
+        "customer_id": 124,
+        "issue": "Database synchronization delay of 15 mins",
+        "status": "In Progress",
+        "date": "2026-07-20"
+    },
+    {
+        "ticket_id": 9009,
+        "customer_id": 112,
+        "issue": "Slow query execution times in CRM portal",
+        "status": "Open",
+        "date": "2026-07-04"
+    },
+    {
+        "ticket_id": 9010,
+        "customer_id": 101,
+        "issue": "Slow query execution times in CRM portal",
+        "status": "Closed",
+        "date": "2026-07-25"
+    },
+    {
+        "ticket_id": 9011,
+        "customer_id": 123,
+        "issue": "Export to CSV fails on customer table",
+        "status": "Closed",
+        "date": "2026-07-02"
+    },
+    {
+        "ticket_id": 9012,
+        "customer_id": 123,
+        "issue": "Custom fields not rendering on dashboard",
+        "status": "Open",
+        "date": "2026-07-06"
+    },
+    {
+        "ticket_id": 9013,
+        "customer_id": 125,
+        "issue": "Billing mismatch on monthly invoice",
+        "status": "In Progress",
+        "date": "2026-07-31"
+    },
+    {
+        "ticket_id": 9014,
+        "customer_id": 115,
+        "issue": "Billing mismatch on monthly invoice",
+        "status": "Closed",
+        "date": "2026-07-17"
+    },
+    {
+        "ticket_id": 9015,
+        "customer_id": 117,
+        "issue": "Database synchronization delay of 15 mins",
+        "status": "Open",
+        "date": "2026-07-23"
+    },
+    {
+        "ticket_id": 9016,
+        "customer_id": 123,
+        "issue": "Unable to reset admin account password",
+        "status": "In Progress",
+        "date": "2026-07-07"
+    },
+    {
+        "ticket_id": 9017,
+        "customer_id": 119,
+        "issue": "Billing mismatch on monthly invoice",
+        "status": "Open",
+        "date": "2026-07-15"
+    },
+    {
+        "ticket_id": 9018,
+        "customer_id": 107,
+        "issue": "Export to CSV fails on customer table",
+        "status": "In Progress",
+        "date": "2026-07-07"
+    },
+    {
+        "ticket_id": 9019,
+        "customer_id": 114,
+        "issue": "Unable to reset admin account password",
+        "status": "Open",
+        "date": "2026-07-28"
+    },
+    {
+        "ticket_id": 9020,
+        "customer_id": 117,
+        "issue": "Slow query execution times in CRM portal",
+        "status": "Closed",
+        "date": "2026-07-19"
+    },
+    {
+        "ticket_id": 9021,
+        "customer_id": 112,
+        "issue": "Export to CSV fails on customer table",
+        "status": "Closed",
+        "date": "2026-07-15"
+    },
+    {
+        "ticket_id": 9022,
+        "customer_id": 105,
+        "issue": "Custom fields not rendering on dashboard",
+        "status": "Open",
+        "date": "2026-07-29"
+    },
+    {
+        "ticket_id": 9023,
+        "customer_id": 110,
+        "issue": "Export to CSV fails on customer table",
+        "status": "In Progress",
+        "date": "2026-07-07"
+    },
+    {
+        "ticket_id": 9024,
+        "customer_id": 103,
+        "issue": "Slow query execution times in CRM portal",
+        "status": "Open",
+        "date": "2026-07-06"
+    },
+    {
+        "ticket_id": 9025,
+        "customer_id": 104,
+        "issue": "Unable to reset admin account password",
+        "status": "Open",
+        "date": "2026-07-21"
+    }
+]

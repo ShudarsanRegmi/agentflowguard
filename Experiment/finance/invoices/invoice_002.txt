@@ -1,0 +1,7 @@
+INVOICE #INV-2026-002
+Date: 2026-07-15
+Vendor: AWS Cloud Hosting
+Description: Monthly server hosting & database instances
+Amount: $12,850.32
+Payment Terms: Auto-debit
+Status: Paid

@@ -1,0 +1,38 @@
+JUNE PAYROLL REPORT
+============================================================
+Pay Period:      2026-06
+Payment Date:    2026-06-30
+Generated On:    2026-08-01
+Active Employees: 15
+============================================================
+
+EMPLOYEE PAYOUT SUMMARY
+------------------------------------------------------------
+| Employee ID | Name             | Role                       | June Payout ($) |
+|-------------|------------------|----------------------------|-----------------|
+| 10001       | Laura Wilson     | Senior Architect           | 5,416.67        |
+| 10002       | Matthew White    | Support Lead               | 13,333.33       |
+| 10003       | Nora Clark       | Junior Developer           | 13,333.33       |
+| 10004       | Oliver Walker    | Database Administrator     | 7,083.33        |
+| 10005       | Penelope Young   | System Engineer            | 13,333.33       |
+| 10006       | Quincy Wright    | Sales Consultant           | 13,333.33       |
+| 10007       | Rachel Scott     | Principal Security Researcher | 9,166.67      |
+| 10008       | Samuel Brown     | Senior Architect           | 9,166.67        |
+| 10009       | Tina Adams       | Support Lead               | 7,083.33        |
+| 10010       | Ulysses Taylor   | Junior Developer           | 9,166.67        |
+| 10011       | Victoria Harris  | Database Administrator     | 15,416.67       |
+| 10012       | William Lewis    | System Engineer            | 11,250.00       |
+| 10013       | Xenia Hall       | Sales Consultant           | 9,166.67        |
+| 10014       | Yusuf Hernandez  | Principal Security Researcher | 9,166.67      |
+| 10015       | Zoe Lopez        | Senior Architect           | 15,416.67       |
+
+------------------------------------------------------------
+TOTAL JUNE PAYOUT: 160,833.35
+------------------------------------------------------------
+
+NOTES
+------------------------------------------------------------
+- All 15 employees listed in the Employees table are active
+  (each has payroll records for the 2026-04, 2026-05, and 2026-06 periods).
+- Monthly payout is salary / 12, paid on the last day of each month.
+- All June payouts are dated 2026-06-30.

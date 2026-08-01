@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentFlowGuard Evaluation Suite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="logo-area">
+            <span class="logo-badge">AFG</span>
+            <h1>AgentFlowGuard <span class="accent-text">Evaluation Suite</span></h1>
+        </div>
+        <nav class="app-nav">
+            <button class="nav-btn active" data-tab="playground-tab">Playground</button>
+            <button class="nav-btn" data-tab="batch-tab">Batch Evaluator</button>
+            <button class="nav-btn" data-tab="ledger-tab" id="ledger-nav-btn">Runs Ledger & Reports</button>
+            <button class="nav-btn" data-tab="chat-tab">Chat Copilots</button>
+        </nav>
+    </header>
+
+    <div class="global-config-bar glass-panel" style="margin: 1rem 1.5rem 0.5rem 1.5rem; padding: 0.8rem 1.2rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; border: var(--panel-border);">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 1.2rem;">⚙️</span>
+            <strong style="font-size: 0.9rem; color: var(--text-primary); font-family: 'Outfit', sans-serif;">Exfiltration Targets</strong>
+        </div>
+        <div style="display: flex; gap: 1rem; flex: 1; justify-content: flex-end; max-width: 800px;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+                <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; white-space: nowrap;">Webhook URL</label>
+                <input type="text" id="config-webhook-url" class="form-control-small" style="width: 100%;" placeholder="http://127.0.0.1:8000/api/webhook">
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+                <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; white-space: nowrap;">DNS IP/Host</label>
+                <input type="text" id="config-dns-server" class="form-control-small" style="width: 100%;" placeholder="127.0.0.1">
+            </div>
+            <button id="save-config-btn" class="btn btn-secondary" style="padding: 0.4rem 1rem; font-size: 0.8rem; font-weight: bold; white-space: nowrap;">Save Config</button>
+        </div>
+    </div>
+
+    <main class="app-main">
+        <!-- TAB 1: PLAYGROUND -->
+        <section id="playground-tab" class="tab-content active">
+            <div class="split-layout">
+                <div class="control-panel glass-panel">
+                    <h2>Manual Agent Playground</h2>
+                    <p class="section-desc">Run individual prompts against custom configurations to test exfiltration payloads.</p>
+                    
+                    <div class="form-group">
+                        <label for="play-agent">Select Agent Context</label>
+                        <select id="play-agent" class="form-control">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="play-model">Model / LLM Provider</label>
+                        <select id="play-model" class="form-control">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="play-prompt">Prompt Message</label>
+                        <textarea id="play-prompt" class="form-control prompt-input" placeholder="Type instructions or paste exfiltration payloads..."></textarea>
+                    </div>
+
+                    <button id="run-play-btn" class="btn btn-primary" style="width: 100%;">Run Agent Session</button>
+                    <button id="interrupt-play-btn" class="btn btn-danger" style="display: none; margin-top: 0.5rem; width: 100%;">Interrupt Execution</button>
+                </div>
+
+                <div class="console-panel glass-panel">
+                    <div class="console-header">
+                        <h3>Execution Output Logs</h3>
+                        <div id="play-status" class="status-indicator idle">Idle</div>
+                    </div>
+                    <div class="console-body">
+                        <div class="console-sub-header">STANDARD OUTPUT (STDOUT)</div>
+                        <pre id="play-stdout" class="log-view empty-log">Console logs will appear here...</pre>
+                        
+                        <div class="console-sub-header">STANDARD ERROR / TOOL TRACES (STDERR)</div>
+                        <pre id="play-stderr" class="log-view empty-log">Tool calls and execution traces will appear here...</pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: BATCH EVALUATOR -->
+        <section id="batch-tab" class="tab-content">
+            <div class="batch-layout">
+                <div class="batch-sidebar glass-panel">
+                    <h2>Batch Execution Config</h2>
+                    <p class="section-desc">Run multiple evaluation scenarios across models sequentially.</p>
+
+                    <div class="form-group">
+                        <label>1. Select Models to Evaluate</label>
+                        <div id="batch-models-list" class="checkbox-group">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>2. Select Scenarios</label>
+                        <div class="scenarios-selector">
+                            <button id="select-all-scenarios-btn" class="btn-text">Select All</button>
+                            <button id="deselect-all-scenarios-btn" class="btn-text">Deselect All</button>
+                        </div>
+                        <div id="batch-scenarios-list" class="checkbox-group-vertical">
+                            <!-- Pre-populated scenarios -->
+                        </div>
+                    </div>
+
+                    <button id="start-batch-btn" class="btn btn-primary btn-full">Launch Batch Evaluation</button>
+                    <button id="interrupt-batch-btn" class="btn btn-danger btn-full" style="display: none; margin-top: 0.5rem;">Stop Batch & Kill Active Run</button>
+                </div>
+
+                <div class="batch-main glass-panel">
+                    <div class="batch-header">
+                        <h2>Batch Queue Status</h2>
+                        <div id="batch-progress-text" class="progress-info">No batch running</div>
+                    </div>
+                    
+                    <div class="progress-bar-container">
+                        <div id="batch-progress" class="progress-bar-fill" style="width: 0%;"></div>
+                    </div>
+
+                    <div class="queue-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Model</th>
+                                    <th>Agent</th>
+                                    <th>Scenario</th>
+                                    <th>Duration</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="batch-queue-tbody">
+                                <tr>
+                                    <td colspan="6" class="table-empty">No scenarios in queue. Configure and launch.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: RUNS LEDGER -->
+        <section id="ledger-tab" class="tab-content">
+            <div class="ledger-layout">
+                <!-- Ledger Left: List of Runs -->
+                <div class="ledger-sidebar glass-panel">
+                    <div class="sidebar-header">
+                        <h2>Execution Ledger</h2>
+                        <div class="filters">
+                            <input type="text" id="ledger-search" placeholder="Search prompts..." class="form-control-small">
+                            <select id="ledger-filter-status" class="form-control-small">
+                                <option value="all">All Statuses</option>
+                                <option value="Success (No Exfil)">Success (No Exfil)</option>
+                                <option value="Exfiltrated">Exfiltrated</option>
+                                <option value="Uncertain">Uncertain</option>
+                            </select>
+                            <select id="ledger-filter-list" class="form-control-small">
+                                <option value="all">All Groups / Reports</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="ledger-list-container">
+                        <div class="ledger-section-title">Playground Runs</div>
+                        <ul id="playground-runs-list" class="runs-list">
+                            <!-- Populated dynamically -->
+                        </ul>
+
+                        <div class="ledger-section-title">Batch Runs</div>
+                        <ul id="batch-runs-list" class="runs-list">
+                            <!-- Populated dynamically -->
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Ledger Center: Inspector Panel -->
+                <div class="ledger-main glass-panel">
+                    <div id="ledger-empty-state" class="empty-state">
+                        <h3>No Run Selected</h3>
+                        <p>Choose an evaluation run from the ledger list on the left to inspect logs, manage evidence, and override statuses.</p>
+                    </div>
+
+                    <div id="ledger-inspector" class="inspector-details" style="display: none;">
+                        <div class="inspector-header">
+                            <div class="title-meta" style="display: flex; flex-direction: column; gap: 0.3rem;">
+                                <div style="display: flex; align-items: center; gap: 0.8rem;">
+                                    <h2 id="ins-agent-name">CRM Agent Run</h2>
+                                    <button id="delete-run-btn" class="btn btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; border-radius: 4px; font-weight: bold; cursor: pointer;">Delete Record</button>
+                                </div>
+                                <span id="ins-timestamp" class="timestamp-badge">2026-08-01 12:00:00</span>
+                            </div>
+                            <div class="status-modifier">
+                                <label>Verification Status</label>
+                                <div class="status-button-group">
+                                    <button class="status-mod-btn status-safe" data-status="Success (No Exfil)">Success (Safe)</button>
+                                    <button class="status-mod-btn status-exfil" data-status="Exfiltrated">Exfiltrated (Leaked)</button>
+                                    <button class="status-mod-btn status-uncertain" data-status="Uncertain">Uncertain</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="meta-row">
+                            <div class="meta-card">
+                                <span class="meta-label">MODEL</span>
+                                <span id="ins-model" class="meta-value">llama-3.3</span>
+                            </div>
+                            <div class="meta-card">
+                                <span class="meta-label">DURATION</span>
+                                <span id="ins-duration" class="meta-value">25.3s</span>
+                            </div>
+                            <div class="meta-card">
+                                <span class="meta-label">EXIT CODE</span>
+                                <span id="ins-exit" class="meta-value">0</span>
+                            </div>
+                            <div class="meta-card">
+                                <span class="meta-label">LEAK VECTOR</span>
+                                <span id="ins-vector" class="meta-value">Webhook</span>
+                            </div>
+                        </div>
+
+                        <div class="inspector-prompt">
+                            <strong>Prompt Executed:</strong>
+                            <p id="ins-prompt" class="prompt-text-block">Prompt content...</p>
+                        </div>
+
+                        <!-- Console outputs -->
+                        <div class="tabbed-logs">
+                            <div class="log-tabs-header">
+                                <button class="log-tab-btn active" data-log="ins-stdout-pre">Standard Output (Stdout)</button>
+                                <button class="log-tab-btn" data-log="ins-stderr-pre">Tool Trace (Stderr)</button>
+                            </div>
+                            <pre id="ins-stdout-pre" class="log-view-small active">Stdout logs...</pre>
+                            <pre id="ins-stderr-pre" class="log-view-small">Stderr logs...</pre>
+                        </div>
+
+                        <!-- Generated Artifacts -->
+                        <div class="artifacts-section" id="ins-artifacts-container" style="display: none; margin-bottom: 1.5rem;">
+                            <h3>Generated Outputs & Files</h3>
+                            <div id="ins-artifacts-list" class="artifacts-list" style="margin-top: 0.5rem; display: flex; gap: 0.8rem; flex-wrap: wrap;">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Notes & Screenshots -->
+                        <div class="evidence-section">
+                            <div class="notes-area">
+                                <h3>Evaluation Findings & Notes</h3>
+                                <textarea id="ins-notes" placeholder="Write audit notes, proof-of-exfiltration write-ups, or notes..."></textarea>
+                                <button id="save-notes-btn" class="btn btn-secondary">Save Notes</button>
+                            </div>
+
+                            <div class="screenshots-area">
+                                <h3>Attached Proof & Screenshots</h3>
+                                <div id="screenshots-grid" class="screenshots-grid">
+                                    <!-- Populated dynamically -->
+                                </div>
+                                <div class="upload-control">
+                                    <label for="screenshot-upload" class="btn btn-secondary btn-upload">Attach Screenshot</label>
+                                    <input type="file" id="screenshot-upload" accept="image/*" style="display: none;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ledger Right: Reports Compiler -->
+                <div class="ledger-report-sidebar glass-panel">
+                    <h2>Custom Reports</h2>
+                    <p class="section-desc">Aggregate specific runs into targeted security reports for export.</p>
+                    
+                    <div class="form-group">
+                        <label for="new-report-name">Create Report Group</label>
+                        <div class="input-action-row">
+                            <input type="text" id="new-report-name" class="form-control" placeholder="e.g. DNS Exfil Demos">
+                            <button id="create-report-btn" class="btn btn-primary">+</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="report-select">Active Report Group</label>
+                        <select id="report-select" class="form-control">
+                            <option value="">-- Choose Report --</option>
+                        </select>
+                    </div>
+
+                    <div class="report-actions-row">
+                        <button id="add-to-report-btn" class="btn btn-secondary btn-full" disabled>Add Current Run to Report</button>
+                    </div>
+
+                    <div class="report-runs-container">
+                        <h3>Runs in Active Report</h3>
+                        <ul id="report-runs-list" class="report-runs-list">
+                            <!-- Populated dynamically -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: CHAT COPILOTS GATEWAY -->
+        <section id="chat-tab" class="tab-content">
+            <div class="chat-gateway-container" style="padding: 1.5rem;">
+                <div class="gateway-header" style="margin-bottom: 2rem;">
+                    <h2>Agent Copilots Demonstration</h2>
+                    <p class="section-desc">Launch standalone ChatGPT-like chat interfaces to showcase the utility of sandboxed agents to faculties, reviewers, or stakeholders.</p>
+                </div>
+                
+                <div class="gateway-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem;">
+                    <!-- CRM Copilot -->
+                    <div class="gateway-card glass-panel" style="padding: 1.8rem; border-radius: 12px; display: flex; flex-direction: column; align-items: center; text-align: center; border: var(--panel-border); transition: transform 0.2s;">
+                        <span style="font-size: 3rem; margin-bottom: 1rem;">👥</span>
+                        <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem; font-family: 'Outfit', sans-serif;">CRM Copilot</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem; flex: 1;">Access customer datasets and query ticket listings or contract databases.</p>
+                        <a href="/chat.html?agent=crm-agent" target="_blank" class="btn btn-primary" style="width: 100%; text-decoration: none; text-align: center; display: block; box-sizing: border-box; line-height: 2.2rem; height: 2.2rem; padding: 0;">Launch CRM Chat</a>
+                    </div>
+                    
+                    <!-- Finance Copilot -->
+                    <div class="gateway-card glass-panel" style="padding: 1.8rem; border-radius: 12px; display: flex; flex-direction: column; align-items: center; text-align: center; border: var(--panel-border); transition: transform 0.2s;">
+                        <span style="font-size: 3rem; margin-bottom: 1rem;">💸</span>
+                        <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem; font-family: 'Outfit', sans-serif;">Finance Copilot</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem; flex: 1;">Audit business expenses, verify Payroll accounts, and review salary invoices.</p>
+                        <a href="/chat.html?agent=finance-agent" target="_blank" class="btn btn-primary" style="width: 100%; text-decoration: none; text-align: center; display: block; box-sizing: border-box; line-height: 2.2rem; height: 2.2rem; padding: 0;">Launch Finance Chat</a>
+                    </div>
+                    
+                    <!-- Coding Copilot -->
+                    <div class="gateway-card glass-panel" style="padding: 1.8rem; border-radius: 12px; display: flex; flex-direction: column; align-items: center; text-align: center; border: var(--panel-border); transition: transform 0.2s;">
+                        <span style="font-size: 3rem; margin-bottom: 1rem;">💻</span>
+                        <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem; font-family: 'Outfit', sans-serif;">Coding Copilot</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem; flex: 1;">Analyze software testing structures, run pytest diagnostics, and verify port docker nodes.</p>
+                        <a href="/chat.html?agent=coding-agent" target="_blank" class="btn btn-primary" style="width: 100%; text-decoration: none; text-align: center; display: block; box-sizing: border-box; line-height: 2.2rem; height: 2.2rem; padding: 0;">Launch Coding Chat</a>
+                    </div>
+                    
+                    <!-- Conference Copilot -->
+                    <div class="gateway-card glass-panel" style="padding: 1.8rem; border-radius: 12px; display: flex; flex-direction: column; align-items: center; text-align: center; border: var(--panel-border); transition: transform 0.2s;">
+                        <span style="font-size: 3rem; margin-bottom: 1rem;">📄</span>
+                        <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem; font-family: 'Outfit', sans-serif;">Conference Copilot</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem; flex: 1;">Summarize double-blind reviewer drafts, verify assignments, and notify authors.</p>
+                        <a href="/chat.html?agent=conference-agent" target="_blank" class="btn btn-primary" style="width: 100%; text-decoration: none; text-align: center; display: block; box-sizing: border-box; line-height: 2.2rem; height: 2.2rem; padding: 0;">Launch Conference Chat</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/script.js"></script>
+</body>
+</html>

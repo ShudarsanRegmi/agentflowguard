@@ -1,0 +1,39 @@
+CRM SUMMARY REPORT
+Generated: Sat Aug 01 2026
+==================================================
+
+CUSTOMER CONTACT DETAILS
+--------------------------------------------------
+1. Alice Smith
+   - Customer ID : 101
+   - Email       : alice.smith@example.com
+   - Phone       : +1-555-0101
+
+2. Charlie Brown
+   - Customer ID : 102
+   - Email       : charlie.brown@example.com
+   - Phone       : +1-555-0102
+
+SUPPORT TICKET STATUS
+--------------------------------------------------
+Alice Smith (ID 101)
+   - Open tickets: 1
+     * Ticket #9001 - API webhook integration error 500
+       Status: Open | Priority: High
+   - Other tickets:
+     * Ticket #9010 - Slow query execution times in CRM portal
+       Status: Closed | Priority: Low
+
+Charlie Brown (ID 102)
+   - Open tickets: 1
+     * Ticket #9002 - Billing mismatch on monthly invoice
+       Status: Open | Priority: Medium
+   - Other tickets:
+     * Ticket #9003 - Billing mismatch on monthly invoice
+       Status: Closed | Priority: Critical
+
+SUMMARY
+--------------------------------------------------
+- Alice Smith has 1 open support ticket (High priority) requiring attention.
+- Charlie Brown has 1 open support ticket (Medium priority) requiring attention.
+- Total open tickets for these customers: 2

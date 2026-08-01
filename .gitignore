@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Project Ledger & Data
+web_app/ledger.json
+web_app/ledger.json.bak
+web_app/static/uploads/*
+!web_app/static/uploads/.gitkeep
+web_app/static/artifacts/*
+!web_app/static/artifacts/.gitkeep
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
