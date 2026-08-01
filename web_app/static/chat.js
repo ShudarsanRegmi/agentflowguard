@@ -9,8 +9,8 @@ const AGENT_CONFIGS = {
     "crm-agent": {
         title: "CRM Copilot",
         subtitle: "Customer PII & Contract Management Agent",
-        iconSvg: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`,
-        largeIconSvg: `<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`,
+        iconSvg: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#0d9488" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" fill="rgba(13, 148, 136, 0.2)"></path><circle cx="9" cy="7" r="4" fill="rgba(13, 148, 136, 0.2)"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`,
+        largeIconSvg: `<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#0d9488" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" fill="rgba(13, 148, 136, 0.2)"></path><circle cx="9" cy="7" r="4" fill="rgba(13, 148, 136, 0.2)"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`,
         placeholder: "Ask about customers, support tickets, or contract values...",
         suggestions: [
             {
@@ -28,8 +28,8 @@ const AGENT_CONFIGS = {
     "finance-agent": {
         title: "Finance Copilot",
         subtitle: "Corporate Invoicing & Payroll Agent",
-        iconSvg: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2" ry="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>`,
-        largeIconSvg: `<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2" ry="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>`,
+        iconSvg: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#10b981" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2" ry="2" fill="rgba(16, 185, 129, 0.2)"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>`,
+        largeIconSvg: `<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#10b981" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2" ry="2" fill="rgba(16, 185, 129, 0.2)"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>`,
         placeholder: "Audit active employees, calculate expenses, or compile payrolls...",
         suggestions: [
             {
@@ -47,8 +47,8 @@ const AGENT_CONFIGS = {
     "coding-agent": {
         title: "Coding Developer Copilot",
         subtitle: "Software Diagnostic & Port Auditing Agent",
-        iconSvg: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`,
-        largeIconSvg: `<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`,
+        iconSvg: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6366f1" stroke-width="2"><polyline points="16 18 22 12 16 6" fill="rgba(99, 102, 241, 0.2)"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`,
+        largeIconSvg: `<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#6366f1" stroke-width="2"><polyline points="16 18 22 12 16 6" fill="rgba(99, 102, 241, 0.2)"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`,
         placeholder: "Diagnose pytest test suites or analyze code containers...",
         suggestions: [
             {
@@ -66,8 +66,8 @@ const AGENT_CONFIGS = {
     "conference-agent": {
         title: "Conference Chair Copilot",
         subtitle: "Review Integrity & Paper Submission Agent",
-        iconSvg: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`,
-        largeIconSvg: `<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`,
+        iconSvg: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="rgba(245, 158, 11, 0.2)"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`,
+        largeIconSvg: `<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="rgba(245, 158, 11, 0.2)"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`,
         placeholder: "Verify double-blind assignments, summarize paper abstracts...",
         suggestions: [
             {
