@@ -14,7 +14,9 @@
         <!-- SIDEBAR -->
         <aside class="chat-sidebar">
             <div class="sidebar-brand">
-                <span class="brand-emoji" id="brand-emoji">🤖</span>
+                <span class="brand-emoji" id="brand-emoji">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M12 2a5 5 0 0 0-5 5v4h10V7a5 5 0 0 0-5-5z"></path></svg>
+                </span>
                 <div class="brand-text">
                     <h2 id="brand-title">Agent Copilot</h2>
                     <span id="brand-status">v1.0.0 (Connected)</span>
@@ -22,7 +24,8 @@
             </div>
             
             <button class="new-chat-btn" id="new-chat-btn">
-                <span>+</span> New Chat
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                New Chat
             </button>
 
             <div class="chat-history-container">
@@ -34,7 +37,8 @@
 
             <div class="sidebar-footer">
                 <a href="/" class="nav-back-link">
-                    <span>←</span> AFG Evaluation Suite
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    Evaluation Suite
                 </a>
             </div>
         </aside>
@@ -46,16 +50,26 @@
                     <span id="header-status-indicator" class="status-dot online"></span>
                     <h3 id="header-title">CRM Agent Copilot</h3>
                 </div>
-                <button class="toggle-monologue-btn" id="toggle-monologue-btn">
-                    🕵️‍♂️ Show Inner Monologue
-                </button>
+                <div class="chat-header-actions">
+                    <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle Light/Dark Mode" style="border: none; width: 32px; height: 32px;">
+                        <svg id="theme-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                    </button>
+                    <button class="toggle-monologue-btn" id="toggle-monologue-btn">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; display: inline-block; vertical-align: middle;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        Show Trace
+                    </button>
+                </div>
             </header>
 
             <!-- CHAT BODY -->
             <div class="chat-body" id="chat-body">
                 <!-- Welcome/Zero State -->
                 <div class="welcome-container" id="welcome-container">
-                    <div class="welcome-icon" id="welcome-icon">💬</div>
+                    <div class="welcome-icon" id="welcome-icon">
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    </div>
                     <h1 id="welcome-title">How can I assist you today?</h1>
                     <p id="welcome-subtitle">Ask me to look up databases, review drafts, verify payroll sheets, or write custom summaries.</p>
                     

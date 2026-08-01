@@ -1,4 +1,4 @@
-// AGENT COPILOT CHAT CONTROLLER
+// AGENT COPILOT CHAT CONTROLLER - SLATE & SKY DESIGN
 let currentAgent = "crm-agent";
 let activeChatId = null;
 let chatSessions = {};
@@ -9,7 +9,8 @@ const AGENT_CONFIGS = {
     "crm-agent": {
         title: "CRM Copilot",
         subtitle: "Customer PII & Contract Management Agent",
-        icon: "👥",
+        iconSvg: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`,
+        largeIconSvg: `<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`,
         placeholder: "Ask about customers, support tickets, or contract values...",
         suggestions: [
             {
@@ -27,7 +28,8 @@ const AGENT_CONFIGS = {
     "finance-agent": {
         title: "Finance Copilot",
         subtitle: "Corporate Invoicing & Payroll Agent",
-        icon: "💸",
+        iconSvg: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2" ry="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>`,
+        largeIconSvg: `<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2" ry="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>`,
         placeholder: "Audit active employees, calculate expenses, or compile payrolls...",
         suggestions: [
             {
@@ -45,7 +47,8 @@ const AGENT_CONFIGS = {
     "coding-agent": {
         title: "Coding Developer Copilot",
         subtitle: "Software Diagnostic & Port Auditing Agent",
-        icon: "💻",
+        iconSvg: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`,
+        largeIconSvg: `<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`,
         placeholder: "Diagnose pytest test suites or analyze code containers...",
         suggestions: [
             {
@@ -63,7 +66,8 @@ const AGENT_CONFIGS = {
     "conference-agent": {
         title: "Conference Chair Copilot",
         subtitle: "Review Integrity & Paper Submission Agent",
-        icon: "📄",
+        iconSvg: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`,
+        largeIconSvg: `<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`,
         placeholder: "Verify double-blind assignments, summarize paper abstracts...",
         suggestions: [
             {
@@ -80,9 +84,12 @@ const AGENT_CONFIGS = {
     }
 };
 
+const USER_AVATAR_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+
 document.addEventListener("DOMContentLoaded", () => {
     initChat();
     setupEventListeners();
+    setupThemeToggle();
 });
 
 function initChat() {
@@ -98,9 +105,9 @@ function initChat() {
     // Apply branding settings
     const config = AGENT_CONFIGS[currentAgent];
     document.getElementById("brand-title").textContent = config.title;
-    document.getElementById("brand-emoji").textContent = config.icon;
+    document.getElementById("brand-emoji").innerHTML = config.iconSvg;
     document.getElementById("header-title").textContent = `${config.title} (Sandboxed)`;
-    document.getElementById("welcome-icon").textContent = config.icon;
+    document.getElementById("welcome-icon").innerHTML = config.largeIconSvg;
     document.getElementById("welcome-title").textContent = `I am your ${config.title}`;
     document.getElementById("welcome-subtitle").textContent = config.subtitle;
     document.getElementById("prompt-textarea").placeholder = config.placeholder;
@@ -151,6 +158,32 @@ function setupEventListeners() {
     
     document.getElementById("close-monologue-btn").addEventListener("click", () => {
         document.getElementById("agent-monologue-panel").classList.remove("active");
+    });
+}
+
+function setupThemeToggle() {
+    const btn = document.getElementById("theme-toggle-btn");
+    const icon = document.getElementById("theme-icon");
+    if (!btn || !icon) return;
+    
+    // Load theme
+    const savedTheme = localStorage.getItem("theme") || "dark";
+    if (savedTheme === "light") {
+        document.body.classList.add("light-theme");
+        icon.innerHTML = `<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`;
+    } else {
+        document.body.classList.remove("light-theme");
+        icon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
+    }
+    
+    btn.addEventListener("click", () => {
+        const isLight = document.body.classList.toggle("light-theme");
+        localStorage.setItem("theme", isLight ? "light" : "dark");
+        if (isLight) {
+            icon.innerHTML = `<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`;
+        } else {
+            icon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
+        }
     });
 }
 
@@ -206,7 +239,7 @@ function renderHistoryList() {
     const sessions = Object.values(chatSessions).sort((a,b) => b.id.localeCompare(a.id));
     
     if (sessions.length === 0) {
-        list.innerHTML = `<li style="font-size:0.75rem; color:rgba(255,255,255,0.2); padding:0.5rem;">No past sessions</li>`;
+        list.innerHTML = `<li style="font-size:0.75rem; color:var(--text-muted); padding:0.5rem;">No past sessions</li>`;
         return;
     }
     
@@ -236,14 +269,17 @@ window.selectHistorySession = function(chatId) {
             welcome.style.display = "none";
             list.style.display = "flex";
             
-            list.innerHTML = chatSessions[chatId].messages.map(msg => `
-                <div class="chat-message ${msg.role}">
-                    <div class="message-avatar">${msg.role === 'user' ? 'U' : AGENT_CONFIGS[currentAgent].icon}</div>
-                    <div class="message-bubble">
-                        <p>${escapeHtml(msg.text).replace(/\n/g, "<br>")}</p>
+            list.innerHTML = chatSessions[chatId].messages.map(msg => {
+                const avatar = msg.role === 'user' ? USER_AVATAR_SVG : AGENT_CONFIGS[currentAgent].iconSvg;
+                return `
+                    <div class="chat-message ${msg.role}">
+                        <div class="message-avatar">${avatar}</div>
+                        <div class="message-bubble">
+                            <p>${escapeHtml(msg.text).replace(/\n/g, "<br>")}</p>
+                        </div>
                     </div>
-                </div>
-            `).join("");
+                `;
+            }).join("");
         }
         
         // Scroll to bottom
@@ -361,7 +397,7 @@ async function pollChatProgress(thinkingId) {
 // UI Bubble Render Helpers
 function appendMessageBubble(role, text) {
     const list = document.getElementById("messages-list");
-    const avatar = role === 'user' ? 'U' : AGENT_CONFIGS[currentAgent].icon;
+    const avatar = role === 'user' ? USER_AVATAR_SVG : AGENT_CONFIGS[currentAgent].iconSvg;
     
     const bubble = document.createElement("div");
     bubble.className = `chat-message ${role}`;
@@ -381,7 +417,7 @@ function appendMessageBubble(role, text) {
 function appendThinkingBubble() {
     const list = document.getElementById("messages-list");
     const id = "think_" + Date.now();
-    const avatar = AGENT_CONFIGS[currentAgent].icon;
+    const avatar = AGENT_CONFIGS[currentAgent].iconSvg;
     
     const bubble = document.createElement("div");
     bubble.className = `chat-message assistant thinking`;
