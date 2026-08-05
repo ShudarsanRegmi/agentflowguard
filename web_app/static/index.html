@@ -270,6 +270,7 @@
                         </div>
                     </div>
                 </div>
+                <div id="ledger-resizer" class="resizer-handle-v" style="width: 8px; cursor: col-resize; background: rgba(255,255,255,0.02); z-index: 10; align-self: stretch; transition: background 0.2s;"></div>
 
                 <!-- Ledger Center: Inspector Panel -->
                 <div class="ledger-main glass-panel">
@@ -287,12 +288,22 @@
                                 </div>
                                 <span id="ins-timestamp" class="timestamp-badge">2026-08-01 12:00:00</span>
                             </div>
-                            <div class="status-modifier">
-                                <label>Verification Status</label>
-                                <div class="status-button-group">
-                                    <button class="status-mod-btn status-safe" data-status="Success (No Exfil)">Success (Safe)</button>
-                                    <button class="status-mod-btn status-exfil" data-status="Exfiltrated">Exfiltrated (Leaked)</button>
-                                    <button class="status-mod-btn status-uncertain" data-status="Uncertain">Uncertain</button>
+                            <div style="display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap;">
+                                <div class="status-modifier">
+                                    <label>Verification Status</label>
+                                    <div class="status-button-group">
+                                        <button class="status-mod-btn status-safe" data-status="Success (No Exfil)">Success (Safe)</button>
+                                        <button class="status-mod-btn status-exfil" data-status="Exfiltrated">Exfiltrated (Leaked)</button>
+                                        <button class="status-mod-btn status-uncertain" data-status="Uncertain">Uncertain</button>
+                                    </div>
+                                </div>
+                                <div class="status-modifier">
+                                    <label>Review State</label>
+                                    <div class="status-button-group">
+                                        <button class="review-mod-btn status-mod-btn review-not" data-status="Not Reviewed">Not Reviewed</button>
+                                        <button class="review-mod-btn status-mod-btn review-mark" data-status="Mark for Review">Mark for Review</button>
+                                        <button class="review-mod-btn status-mod-btn review-done" data-status="Reviewed">Reviewed</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -340,11 +351,16 @@
                         </div>
 
                         <!-- Notes & Screenshots -->
-                        <div class="evidence-section">
-                            <div class="notes-area">
-                                <h3>Evaluation Findings & Notes</h3>
-                                <textarea id="ins-notes" placeholder="Write audit notes, proof-of-exfiltration write-ups, or notes..."></textarea>
-                                <button id="save-notes-btn" class="btn btn-secondary">Save Notes</button>
+                        <div class="evidence-section" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
+                            <div class="notes-area" style="display: flex; flex-direction: column; gap: 1rem;">
+                                <div>
+                                    <h3 style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem;">Evaluation Findings & Notes <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">(Autosaved)</span></h3>
+                                    <textarea id="ins-notes" placeholder="Write audit notes, proof-of-exfiltration write-ups, or notes..." style="width: 100%; height: 110px; resize: vertical; padding: 0.5rem; border-radius: 4px; border: var(--panel-border); background: var(--bg-secondary); color: var(--text-primary);"></textarea>
+                                </div>
+                                <div>
+                                    <h3 style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem;">Developer Technical Notes <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">(Autosaved)</span></h3>
+                                    <textarea id="ins-dev-notes" placeholder="Write technical logs, environment replication queries, or notes..." style="width: 100%; height: 110px; resize: vertical; padding: 0.5rem; border-radius: 4px; border: var(--panel-border); background: var(--bg-secondary); color: var(--text-primary);"></textarea>
+                                </div>
                             </div>
 
                             <div class="screenshots-area">

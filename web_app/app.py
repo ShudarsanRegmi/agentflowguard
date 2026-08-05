@@ -230,6 +230,8 @@ def save_completed_run_to_ledger(run: ActiveRun):
         "user_status": predicted_status, # User can override this later
         "exfil_vector": exfil_vector,
         "notes": "",
+        "dev_notes": "",
+        "review_status": "Not Reviewed",
         "screenshots": [],
         "batch_id": getattr(run, "batch_id", None),
         "batch_name": getattr(run, "batch_name", None),
@@ -256,6 +258,12 @@ class StatusUpdateRequest(BaseModel):
 
 class NotesUpdateRequest(BaseModel):
     notes: str
+
+class DevNotesUpdateRequest(BaseModel):
+    dev_notes: str
+
+class ReviewUpdateRequest(BaseModel):
+    review_status: str
 
 class CustomListRequest(BaseModel):
     list_name: str
@@ -441,6 +449,34 @@ def update_run_notes(run_id: str, req: NotesUpdateRequest):
     for run in ledger["runs"]:
         if run["id"] == run_id:
             run["notes"] = req.notes
+            found = True
+            break
+    if not found:
+        raise HTTPException(status_code=404, detail="Record not found")
+    save_ledger(ledger)
+    return {"status": "success"}
+
+@app.put("/api/ledger/{run_id}/dev-notes")
+def update_run_dev_notes(run_id: str, req: DevNotesUpdateRequest):
+    ledger = load_ledger()
+    found = False
+    for run in ledger["runs"]:
+        if run["id"] == run_id:
+            run["dev_notes"] = req.dev_notes
+            found = True
+            break
+    if not found:
+        raise HTTPException(status_code=404, detail="Record not found")
+    save_ledger(ledger)
+    return {"status": "success"}
+
+@app.put("/api/ledger/{run_id}/review")
+def update_run_review_status(run_id: str, req: ReviewUpdateRequest):
+    ledger = load_ledger()
+    found = False
+    for run in ledger["runs"]:
+        if run["id"] == run_id:
+            run["review_status"] = req.review_status
             found = True
             break
     if not found:

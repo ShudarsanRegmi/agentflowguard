@@ -716,6 +716,7 @@ let inspectorPollInterval = null;
 document.addEventListener("DOMContentLoaded", () => {
     initApp();
     setupEventListeners();
+    initResizer();
 });
 
 async function initApp() {
@@ -839,8 +840,53 @@ function setupEventListeners() {
         });
     });
 
-    // Save Notes
-    document.getElementById("save-notes-btn").addEventListener("click", saveInspectorNotes);
+    // Save Notes on Blur (Autosave when user tabs out)
+    const insNotes = document.getElementById("ins-notes");
+    if (insNotes) {
+        insNotes.addEventListener("blur", async () => {
+            if (!selectedLedgerRun) return;
+            const val = insNotes.value;
+            if (selectedLedgerRun.notes === val) return;
+            try {
+                await fetch(`/api/ledger/${selectedLedgerRun.id}/notes`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ notes: val })
+                });
+                selectedLedgerRun.notes = val;
+                await loadLedger();
+            } catch (e) {
+                console.error("Error autosaving findings notes:", e);
+            }
+        });
+    }
+
+    const insDevNotes = document.getElementById("ins-dev-notes");
+    if (insDevNotes) {
+        insDevNotes.addEventListener("blur", async () => {
+            if (!selectedLedgerRun) return;
+            const val = insDevNotes.value;
+            if (selectedLedgerRun.dev_notes === val) return;
+            try {
+                await fetch(`/api/ledger/${selectedLedgerRun.id}/dev-notes`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ dev_notes: val })
+                });
+                selectedLedgerRun.dev_notes = val;
+                await loadLedger();
+            } catch (e) {
+                console.error("Error autosaving dev notes:", e);
+            }
+        });
+    }
+
+    // Review status modifier buttons
+    document.querySelectorAll(".review-mod-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            updateRunReviewStatus(btn.dataset.status);
+        });
+    });
 
     // Screenshot file upload
     document.getElementById("screenshot-upload").addEventListener("change", handleScreenshotUpload);
@@ -1560,7 +1606,8 @@ function renderLedgerList() {
                     <div class="batch-group-stats" style="display: flex; align-items: center; gap: 0.4rem;">
                         <span class="status-indicator completed" style="padding:0.1rem 0.3rem; font-size:0.65rem;">${safe} Safe</span>
                         <span class="status-indicator failed" style="padding:0.1rem 0.3rem; font-size:0.65rem;">${exfiltrated} Leak</span>
-                        <button class="btn-text" onclick="deleteBatchGroup('${batch.id}')" title="Delete entire batch run" style="margin-left:0.4rem; color: var(--danger); font-size:0.7rem; border: 1px solid rgba(239, 68, 68, 0.2); padding: 0.1rem 0.3rem; border-radius: 3px; background: rgba(239, 68, 68, 0.05);">Delete</button>
+                        <button class="btn-text" onclick="exportBatchReport('${batch.id}')" title="Export HTML Report" style="margin-left:0.4rem; color: var(--accent-primary); font-size:0.7rem; border: 1px solid rgba(2, 132, 199, 0.2); padding: 0.1rem 0.3rem; border-radius: 3px; background: rgba(2, 132, 199, 0.05);">Report</button>
+                        <button class="btn-text" onclick="deleteBatchGroup('${batch.id}')" title="Delete entire batch run" style="margin-left:0.2rem; color: var(--danger); font-size:0.7rem; border: 1px solid rgba(239, 68, 68, 0.2); padding: 0.1rem 0.3rem; border-radius: 3px; background: rgba(239, 68, 68, 0.05);">Delete</button>
                     </div>
                 </div>
                 <ul id="batch-group-list-${batch.id}" class="runs-list" style="display: ${displayStyle}; margin-top: 0.25rem; padding-left: 0.5rem; border-left: 1px dashed rgba(255,255,255,0.1);">
@@ -1648,6 +1695,7 @@ function selectLedgerItem(runId) {
     document.getElementById("ins-stderr-pre").textContent = run.stderr || "[No Stderr traces recorded]";
     
     document.getElementById("ins-notes").value = run.notes || "";
+    document.getElementById("ins-dev-notes").value = run.dev_notes || "";
     
     // Enable Add To Report button
     const addToReportBtn = document.getElementById("add-to-report-btn");
@@ -1674,6 +1722,7 @@ function selectLedgerItem(runId) {
     
     // Highlight status buttons
     updateStatusButtonsHighlight(run.user_status);
+    updateReviewButtonsHighlight(run.review_status);
     
     // Re-render list selection
     renderLedgerList();
@@ -2084,6 +2133,169 @@ window.selectScenarioCategory = function(category) {
     });
     updateSelectedScenariosCount();
 };
+
+window.exportBatchReport = function(batchId) {
+    const batchRuns = ledgerData.runs.filter(r => r.batch_id === batchId);
+    if (batchRuns.length === 0) {
+        alert("No runs found for this batch.");
+        return;
+    }
+    
+    const batchName = batchRuns[0].batch_name || `Batch (${batchId.split('_').pop()})`;
+    const batchDesc = batchRuns[0].batch_desc || "No description provided.";
+    const timestamp = batchRuns[0].timestamp;
+    
+    const total = batchRuns.length;
+    const exfiltrated = batchRuns.filter(r => r.user_status === 'Exfiltrated').length;
+    const safe = batchRuns.filter(r => r.user_status === 'Success (No Exfil)').length;
+    const uncertain = total - exfiltrated - safe;
+    const score = Math.round((safe / total) * 100);
+    
+    let runsHtml = "";
+    batchRuns.forEach(run => {
+        runsHtml += `
+            <div class="run-card" style="margin-bottom: 1.5rem; padding: 1.25rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem; margin-bottom: 0.75rem;">
+                    <span style="font-weight: 700; color: #1e293b; font-size: 0.95rem;">${run.agent.toUpperCase()} (${run.model.split('/').pop()})</span>
+                    <div>
+                        <span style="padding: 0.2rem 0.5rem; font-size: 0.7rem; border-radius: 4px; font-weight: bold; margin-right: 0.4rem; background: ${run.user_status === 'Exfiltrated' ? '#fee2e2; color:#ef4444;' : run.user_status === 'Success (No Exfil)' ? '#d1fae5; color:#10b981;' : '#fef3c7; color:#d97706;'}">
+                            ${run.user_status}
+                        </span>
+                        <span style="padding: 0.2rem 0.5rem; font-size: 0.7rem; border-radius: 4px; font-weight: bold; background: ${run.review_status === 'Reviewed' ? '#d1fae5; color:#10b981;' : run.review_status === 'Mark for Review' ? '#fef3c7; color:#d97706;' : '#f3f4f6; color:#4b5563;'}">
+                            ${run.review_status || 'Not Reviewed'}
+                        </span>
+                    </div>
+                </div>
+                <div style="font-size: 0.85rem; margin-bottom: 0.75rem; color: #334155;">
+                    <strong>Prompt:</strong> ${escapeHtml(run.prompt)}
+                </div>
+                <div style="margin-bottom: 0.5rem;">
+                    <details>
+                        <summary style="font-size: 0.8rem; font-weight: 600; color: #475569; cursor: pointer; user-select: none;">Console Output (Stdout)</summary>
+                        <pre style="font-size: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; padding: 0.5rem; border-radius: 4px; overflow-x: auto; max-height: 200px; margin-top: 0.25rem;">${escapeHtml(run.stdout)}</pre>
+                    </details>
+                </div>
+                <div style="margin-bottom: 0.5rem;">
+                    <details>
+                        <summary style="font-size: 0.8rem; font-weight: 600; color: #475569; cursor: pointer; user-select: none;">Tool Traces (Stderr)</summary>
+                        <pre style="font-size: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; padding: 0.5rem; border-radius: 4px; overflow-x: auto; max-height: 200px; margin-top: 0.25rem;">${escapeHtml(run.stderr)}</pre>
+                    </details>
+                </div>
+                ${run.notes ? `<div style="font-size: 0.8rem; margin-top: 0.5rem; padding: 0.5rem; background: #f8fafc; border-left: 3px solid #3b82f6;"><strong>Findings Note:</strong> ${escapeHtml(run.notes)}</div>` : ''}
+                ${run.dev_notes ? `<div style="font-size: 0.8rem; margin-top: 0.25rem; padding: 0.5rem; background: #f8fafc; border-left: 3px solid #10b981;"><strong>Dev Note:</strong> ${escapeHtml(run.dev_notes)}</div>` : ''}
+            </div>
+        `;
+    });
+    
+    const reportHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Batch Security Report - ${batchName}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f1f5f9; color: #0f172a; line-height: 1.5; padding: 2rem; }
+        .container { max-width: 850px; margin: 0 auto; }
+        .header { background: #1e293b; color: #ffffff; padding: 2rem; border-radius: 12px; margin-bottom: 2rem; }
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1.5rem; }
+        .stat-card { background: rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 6px; text-align: center; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; }
+        .stat-label { font-size: 0.7rem; opacity: 0.8; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 style="margin: 0; font-size: 1.75rem;">Batch Security Evaluation Report</h1>
+            <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 0.5rem;">Batch: <strong>${escapeHtml(batchName)}</strong></div>
+            <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.25rem;">${escapeHtml(batchDesc)}</div>
+            <div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.25rem;">Execution Timestamp: ${timestamp}</div>
+            
+            <div class="stat-grid">
+                <div class="stat-card"><div class="stat-value">${total}</div><div class="stat-label">Total Runs</div></div>
+                <div class="stat-card" style="color: #10b981;"><div class="stat-value">${safe}</div><div class="stat-label">Safe Runs</div></div>
+                <div class="stat-card" style="color: #ef4444;"><div class="stat-value">${exfiltrated}</div><div class="stat-label">Exfiltrated</div></div>
+                <div class="stat-card"><div class="stat-value">${score}%</div><div class="stat-label">Safety Score</div></div>
+            </div>
+        </div>
+        
+        <h2 style="font-size: 1.2rem; margin-bottom: 1rem; color: #334155;">Detailed Run Ledger (${total} entries)</h2>
+        ${runsHtml}
+    </div>
+</body>
+</html>
+    `;
+    
+    const blob = new Blob([reportHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Batch_Report_${batchId}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+};
+
+function updateReviewButtonsHighlight(activeReviewStatus) {
+    document.querySelectorAll(".review-mod-btn").forEach(btn => {
+        if (btn.dataset.status === (activeReviewStatus || "Not Reviewed")) {
+            btn.classList.add("active");
+        } else {
+            btn.classList.remove("active");
+        }
+    });
+}
+
+async function updateRunReviewStatus(newStatus) {
+    if (!selectedLedgerRun) return;
+    try {
+        const res = await fetch(`/api/ledger/${selectedLedgerRun.id}/review`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ review_status: newStatus })
+        });
+        await res.json();
+        selectedLedgerRun.review_status = newStatus;
+        updateReviewButtonsHighlight(newStatus);
+        await loadLedger();
+    } catch (e) {
+        console.error("Error updating review status:", e);
+    }
+}
+
+function initResizer() {
+    const resizer = document.getElementById("ledger-resizer");
+    const sidebar = document.querySelector(".ledger-sidebar");
+    
+    if (!resizer || !sidebar) return;
+    
+    let startX, startWidth;
+    
+    resizer.addEventListener("mousedown", (e) => {
+        startX = e.clientX;
+        startWidth = sidebar.getBoundingClientRect().width;
+        resizer.classList.add("dragging");
+        
+        document.addEventListener("mousemove", doDrag);
+        document.addEventListener("mouseup", stopDrag);
+        e.preventDefault();
+    });
+    
+    function doDrag(e) {
+        const width = startWidth + (e.clientX - startX);
+        if (width >= 240 && width <= 600) {
+            sidebar.style.width = `${width}px`;
+            sidebar.style.flex = "none";
+        }
+    }
+    
+    function stopDrag() {
+        resizer.classList.remove("dragging");
+        document.removeEventListener("mousemove", doDrag);
+        document.removeEventListener("mouseup", stopDrag);
+    }
+}
 
 let activeLedgerSubtab = "batch";
 

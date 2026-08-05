@@ -1303,3 +1303,35 @@ body.light-theme .batch-group-header:hover {
 .batch-group-stats {
     font-size: 0.75rem;
 }
+
+/* Horizontal resizing rules */
+.resizer-handle-v {
+    width: 6px;
+    cursor: col-resize;
+    background: rgba(255, 255, 255, 0.05);
+    z-index: 10;
+    align-self: stretch;
+    transition: background 0.2s;
+}
+
+.resizer-handle-v:hover, .resizer-handle-v.dragging {
+    background: var(--accent-primary) !important;
+}
+
+body.light-theme .resizer-handle-v {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Review status states styling */
+.review-mod-btn.active {
+    color: #fff !important;
+}
+.review-mod-btn.active[data-status="Not Reviewed"] {
+    background: #6b7280 !important;
+}
+.review-mod-btn.active[data-status="Mark for Review"] {
+    background: #f59e0b !important;
+}
+.review-mod-btn.active[data-status="Reviewed"] {
+    background: #10b981 !important;
+}
