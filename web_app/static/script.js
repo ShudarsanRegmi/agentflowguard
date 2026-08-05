@@ -81,6 +81,9 @@ async function initApp() {
     
     // Pre-populate scenarios checkboxes in Batch tab
     renderBatchScenarios();
+    
+    // Restore batch execution queue and stats from backend
+    await loadBatchState();
 }
 
 function setupEventListeners() {
@@ -192,6 +195,7 @@ function setupEventListeners() {
             document.getElementById("interrupt-batch-btn").style.display = "none";
             document.getElementById("start-batch-btn").disabled = false;
             updateBatchProgressUI();
+            await saveBatchState();
             loadLedger();
         }
     });
@@ -400,6 +404,7 @@ async function launchBatchRuns() {
     
     renderQueueTable();
     updateBatchProgressUI();
+    await saveBatchState();
     
     // Trigger sequential queue processing
     processNextBatchItem();
@@ -452,6 +457,7 @@ async function processNextBatchItem() {
         document.getElementById("interrupt-batch-btn").style.display = "none";
         document.getElementById("start-batch-btn").disabled = false;
         updateBatchProgressUI();
+        await saveBatchState();
         alert("Batch Evaluation Complete!");
         loadLedger();
         return;
@@ -461,6 +467,7 @@ async function processNextBatchItem() {
     item.status = "running";
     renderQueueTable();
     updateBatchProgressUI();
+    await saveBatchState();
 
     try {
         const res = await fetch("/api/run", {
@@ -475,12 +482,14 @@ async function processNextBatchItem() {
         });
         const runData = await res.json();
         item.run_id = runData.run_id;
+        await saveBatchState();
         
         // Start polling the individual process status
         pollBatchItemProgress(item.run_id);
     } catch (e) {
         item.status = "failed";
         currentQueueIndex++;
+        await saveBatchState();
         processNextBatchItem();
     }
 }
@@ -493,6 +502,7 @@ async function pollBatchItemProgress(runId) {
             item.duration = "Stopped";
         }
         renderQueueTable();
+        await saveBatchState();
         return;
     }
     try {
@@ -508,6 +518,7 @@ async function pollBatchItemProgress(runId) {
             
             // Advance execution
             currentQueueIndex++;
+            await saveBatchState();
             processNextBatchItem();
         } else {
             // Keep polling
@@ -959,4 +970,43 @@ function setupThemeToggle() {
             icon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
         }
     });
+}
+
+async function saveBatchState() {
+    try {
+        await fetch("/api/batch/state", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                queue: batchQueue,
+                current_index: currentQueueIndex,
+                is_running: isBatchRunning
+            })
+        });
+    } catch (e) {
+        console.error("Error saving batch state:", e);
+    }
+}
+
+async function loadBatchState() {
+    try {
+        const res = await fetch("/api/batch/state");
+        const state = await res.json();
+        batchQueue = state.queue || [];
+        currentQueueIndex = state.current_index || 0;
+        isBatchRunning = state.is_running || false;
+        
+        if (batchQueue.length > 0) {
+            renderQueueTable();
+            updateBatchProgressUI();
+            
+            if (isBatchRunning) {
+                document.getElementById("interrupt-batch-btn").style.display = "block";
+                document.getElementById("start-batch-btn").disabled = true;
+                processNextBatchItem();
+            }
+        }
+    } catch (e) {
+        console.error("Error loading batch state:", e);
+    }
 }

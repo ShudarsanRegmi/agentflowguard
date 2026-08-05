@@ -506,6 +506,52 @@ def remove_from_custom_list(list_name: str, run_id: str):
             return {"status": "success", "lists": ledger.get("custom_lists", {})}
     raise HTTPException(status_code=404, detail="List or record not found")
 
+class ChatSessionModel(BaseModel):
+    id: str
+    agent: str
+    messages: List[dict]
+    timestamp: str
+
+class BatchStateModel(BaseModel):
+    queue: List[dict]
+    current_index: int
+    is_running: bool
+
+@app.get("/api/chats")
+def get_chats():
+    ledger = load_ledger()
+    return ledger.get("chats", {})
+
+@app.post("/api/chats")
+def save_chat(session: ChatSessionModel):
+    ledger = load_ledger()
+    if "chats" not in ledger:
+        ledger["chats"] = {}
+    ledger["chats"][session.id] = session.dict()
+    save_ledger(ledger)
+    return {"status": "success"}
+
+@app.delete("/api/chats/{chat_id}")
+def delete_chat(chat_id: str):
+    ledger = load_ledger()
+    if "chats" in ledger and chat_id in ledger["chats"]:
+        del ledger["chats"][chat_id]
+        save_ledger(ledger)
+        return {"status": "success"}
+    raise HTTPException(status_code=404, detail="Chat session not found")
+
+@app.get("/api/batch/state")
+def get_batch_state():
+    ledger = load_ledger()
+    return ledger.get("batch_state", {"queue": [], "current_index": 0, "is_running": False})
+
+@app.post("/api/batch/state")
+def save_batch_state(state: BatchStateModel):
+    ledger = load_ledger()
+    ledger["batch_state"] = state.dict()
+    save_ledger(ledger)
+    return {"status": "success"}
+
 # Serve frontend static files
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 app.mount("/", StaticFiles(directory=os.path.join(BASE_DIR, "static"), html=True), name="frontend")

@@ -86,13 +86,13 @@ const AGENT_CONFIGS = {
 
 const USER_AVATAR_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
 
-document.addEventListener("DOMContentLoaded", () => {
-    initChat();
+document.addEventListener("DOMContentLoaded", async () => {
+    await initChat();
     setupEventListeners();
     setupThemeToggle();
 });
 
-function initChat() {
+async function initChat() {
     // Parse url params to identify active agent
     const params = new URLSearchParams(window.location.search);
     const agentParam = params.get("agent");
@@ -122,11 +122,17 @@ function initChat() {
         </div>
     `).join("");
 
-    // Load localStorage conversations
-    loadHistorySessions();
+    // Load backend conversations
+    await loadHistorySessions();
     
-    // Auto start new chat session
-    startNewChat();
+    // Auto start or restore newest session
+    const sessions = Object.values(chatSessions);
+    if (sessions.length > 0) {
+        sessions.sort((a, b) => b.id.localeCompare(a.id));
+        selectHistorySession(sessions[0].id);
+    } else {
+        startNewChat();
+    }
 }
 
 function setupEventListeners() {
@@ -219,19 +225,34 @@ function startNewChat() {
     document.getElementById("monologue-stderr").textContent = "Tool query and resolution traces will print here...";
 }
 
-function loadHistorySessions() {
-    const stored = localStorage.getItem("afg_chat_sessions_" + currentAgent);
-    if (stored) {
-        try {
-            chatSessions = JSON.parse(stored);
-        } catch (e) {
-            chatSessions = {};
+async function loadHistorySessions() {
+    try {
+        const res = await fetch("/api/chats");
+        const allChats = await res.json();
+        chatSessions = {};
+        for (const [cid, session] of Object.entries(allChats)) {
+            if (session.agent === currentAgent) {
+                chatSessions[cid] = session;
+            }
         }
+        renderHistoryList();
+    } catch (e) {
+        console.error("Error loading chat history:", e);
     }
 }
 
-function saveHistorySessions() {
-    localStorage.setItem("afg_chat_sessions_" + currentAgent, JSON.stringify(chatSessions));
+async function saveHistorySessions() {
+    const session = chatSessions[activeChatId];
+    if (!session) return;
+    try {
+        await fetch("/api/chats", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(session)
+        });
+    } catch (e) {
+        console.error("Error saving chat session:", e);
+    }
 }
 
 function renderHistoryList() {
@@ -311,7 +332,7 @@ async function sendMessage() {
     // Append User Message
     appendMessageBubble("user", text);
     chatSessions[activeChatId].messages.push({ role: "user", text });
-    saveHistorySessions();
+    await saveHistorySessions();
     renderHistoryList();
     
     // Append Assistant Thinking Bubble
@@ -382,7 +403,7 @@ async function pollChatProgress(thinkingId) {
             
             appendMessageBubble("assistant", finalAnswer);
             chatSessions[activeChatId].messages.push({ role: "assistant", text: finalAnswer });
-            saveHistorySessions();
+            await saveHistorySessions();
             
             // Force reload ledger in evaluation window in background
             try {
