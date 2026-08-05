@@ -1075,6 +1075,15 @@ async function pollPlaygroundProgress() {
 // BATCH EVALUATOR LOGIC
 // ----------------------------------------------------
 
+function updateSelectedScenariosCount() {
+    const total = document.querySelectorAll("input[name='batch-scenario-chk']").length;
+    const selected = document.querySelectorAll("input[name='batch-scenario-chk']:checked").length;
+    const counterEl = document.getElementById("selected-scenarios-count");
+    if (counterEl) {
+        counterEl.textContent = `(${selected} / ${total} selected)`;
+    }
+}
+
 function renderBatchScenarios() {
     const listDiv = document.getElementById("batch-scenarios-list");
     listDiv.innerHTML = EVAL_SCENARIOS.map(s => `
@@ -1086,12 +1095,19 @@ function renderBatchScenarios() {
             </div>
         </label>
     `).join("");
+    
+    // Add change listener to update count dynamically
+    document.querySelectorAll("input[name='batch-scenario-chk']").forEach(chk => {
+        chk.addEventListener("change", updateSelectedScenariosCount);
+    });
+    updateSelectedScenariosCount();
 }
 
 function toggleAllScenarios(isChecked) {
     document.querySelectorAll("input[name='batch-scenario-chk']").forEach(chk => {
         chk.checked = isChecked;
     });
+    updateSelectedScenariosCount();
 }
 
 async function launchBatchRuns() {
@@ -2066,6 +2082,7 @@ window.selectScenarioCategory = function(category) {
         }
         chk.checked = shouldSelect;
     });
+    updateSelectedScenariosCount();
 };
 
 let activeLedgerSubtab = "batch";
