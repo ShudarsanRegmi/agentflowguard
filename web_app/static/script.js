@@ -771,6 +771,10 @@ function setupEventListeners() {
     // Search and filter ledger
     document.getElementById("ledger-search").addEventListener("input", filterLedgerList);
     document.getElementById("ledger-filter-status").addEventListener("change", filterLedgerList);
+    const filterBatchEl = document.getElementById("ledger-filter-batch");
+    if (filterBatchEl) {
+        filterBatchEl.addEventListener("change", filterLedgerList);
+    }
 
     // Inspector Status modifier buttons
     document.querySelectorAll(".status-mod-btn").forEach(btn => {
@@ -1212,6 +1216,17 @@ async function pollBatchItemProgress(runId) {
         const item = batchQueue[currentQueueIndex];
         item.duration = `${data.duration}s`;
         
+        const liveOut = document.getElementById("batch-live-stdout");
+        const liveErr = document.getElementById("batch-live-stderr");
+        if (liveOut && liveErr) {
+            liveOut.textContent = data.stdout || "Streaming output...";
+            liveErr.textContent = data.stderr || "Streaming traces...";
+            liveOut.classList.remove("empty-log");
+            liveErr.classList.remove("empty-log");
+            liveOut.scrollTop = liveOut.scrollHeight;
+            liveErr.scrollTop = liveErr.scrollHeight;
+        }
+        
         if (data.status === "completed" || data.status === "failed") {
             item.status = data.status === "completed" ? "completed" : "failed";
             renderQueueTable();
@@ -1310,6 +1325,7 @@ async function loadLedger() {
     try {
         const res = await fetch("/api/ledger");
         ledgerData = await res.json();
+        updateBatchFilterOptions();
         renderLedgerList();
     } catch (e) {
         console.error("Error loading ledger database:", e);
@@ -1324,12 +1340,54 @@ window.toggleBatchGroupExpansion = function(batchId) {
     }
 };
 
+window.deleteBatchGroup = async function(batchId) {
+    if (!confirm("Are you sure you want to permanently delete this entire batch execution folder and all its runs?")) return;
+    try {
+        const res = await fetch(`/api/ledger/batch/${batchId}`, {
+            method: "DELETE"
+        });
+        const data = await res.json();
+        alert(`Deleted ${data.deleted_count} execution records from this batch.`);
+        selectedLedgerRun = null;
+        document.getElementById("ledger-inspector").style.display = "none";
+        document.getElementById("ledger-empty-state").style.display = "flex";
+        await loadLedger();
+    } catch (e) {
+        console.error("Error deleting batch group:", e);
+    }
+};
+
+function updateBatchFilterOptions() {
+    const select = document.getElementById("ledger-filter-batch");
+    if (!select) return;
+    
+    const currentVal = select.value;
+    select.innerHTML = '<option value="all">All Batch Presets</option>';
+    
+    const uniqueBatches = {};
+    ledgerData.runs.forEach(run => {
+        if (run.batch_id) {
+            uniqueBatches[run.batch_id] = run.batch_name || `Batch (${run.batch_id.split('_').pop()})`;
+        }
+    });
+    
+    Object.entries(uniqueBatches).forEach(([id, name]) => {
+        const opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = name;
+        select.appendChild(opt);
+    });
+    
+    select.value = currentVal;
+}
+
 function renderLedgerList() {
     const playList = document.getElementById("playground-runs-list");
     const batchList = document.getElementById("batch-runs-list");
     
     const filterStatus = document.getElementById("ledger-filter-status").value;
     const filterList = document.getElementById("ledger-filter-list") ? document.getElementById("ledger-filter-list").value : "all";
+    const filterBatch = document.getElementById("ledger-filter-batch") ? document.getElementById("ledger-filter-batch").value : "all";
     const searchVal = document.getElementById("ledger-search").value.toLowerCase();
     
     // Get list run IDs if custom list filter is active
@@ -1342,8 +1400,9 @@ function renderLedgerList() {
     const filteredRuns = ledgerData.runs.filter(run => {
         const statusMatch = filterStatus === "all" || run.user_status === filterStatus;
         const listMatch = listRunIds === null || listRunIds.includes(run.id);
-        const searchMatch = !searchVal || run.prompt.toLowerCase().includes(searchVal) || run.agent.toLowerCase().includes(searchVal);
-        return statusMatch && listMatch && searchMatch;
+        const batchMatch = filterBatch === "all" || run.batch_id === filterBatch;
+        const searchMatch = !searchVal || run.prompt.toLowerCase().includes(searchVal) || run.agent.toLowerCase().includes(searchVal) || (run.batch_name && run.batch_name.toLowerCase().includes(searchVal));
+        return statusMatch && listMatch && batchMatch && searchMatch;
     });
 
     const singleRuns = filteredRuns.filter(r => r.category === "single");
@@ -1395,15 +1454,16 @@ function renderLedgerList() {
         const displayStyle = containsSelected ? "block" : "none";
         
         batchHTML += `
-            <div class="batch-group-container">
-                <div class="batch-group-header" onclick="toggleBatchGroupExpansion('${batch.id}')" title="${escapeHtml(batch.desc)}">
-                    <div class="batch-group-title">
+            <div class="batch-group-container" style="border: 1px solid rgba(255,255,255,0.05); border-radius: var(--border-radius-sm); margin-bottom: 0.5rem; background: rgba(255,255,255,0.01);">
+                <div class="batch-group-header" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(255,255,255,0.02);">
+                    <div class="batch-group-title" onclick="toggleBatchGroupExpansion('${batch.id}')" style="cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
                         <span class="folder-icon">📂</span>
                         <strong>${escapeHtml(batch.name)}</strong>
                     </div>
-                    <div class="batch-group-stats" style="font-size:0.75rem;">
+                    <div class="batch-group-stats" style="display: flex; align-items: center; gap: 0.4rem;">
                         <span class="status-indicator completed" style="padding:0.1rem 0.3rem; font-size:0.65rem;">${safe} Safe</span>
-                        <span class="status-indicator failed" style="padding:0.1rem 0.3rem; font-size:0.65rem; margin-left:0.2rem;">${exfiltrated} Leak</span>
+                        <span class="status-indicator failed" style="padding:0.1rem 0.3rem; font-size:0.65rem;">${exfiltrated} Leak</span>
+                        <button class="btn-text" onclick="deleteBatchGroup('${batch.id}')" title="Delete entire batch run" style="margin-left:0.4rem; color: var(--danger); font-size:0.7rem; border: 1px solid rgba(239, 68, 68, 0.2); padding: 0.1rem 0.3rem; border-radius: 3px; background: rgba(239, 68, 68, 0.05);">Delete</button>
                     </div>
                 </div>
                 <ul id="batch-group-list-${batch.id}" class="runs-list" style="display: ${displayStyle}; margin-top: 0.25rem; padding-left: 0.5rem; border-left: 1px dashed rgba(255,255,255,0.1);">

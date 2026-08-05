@@ -394,6 +394,28 @@ def delete_run_record(run_id: str):
     save_ledger(ledger)
     return {"status": "success"}
 
+@app.delete("/api/ledger/batch/{batch_id}")
+def delete_batch_record(batch_id: str):
+    ledger = load_ledger()
+    initial_count = len(ledger.get("runs", []))
+    
+    # Filter out runs belonging to this batch
+    ledger["runs"] = [run for run in ledger.get("runs", []) if run.get("batch_id") != batch_id]
+    deleted_count = initial_count - len(ledger["runs"])
+    
+    if deleted_count == 0:
+        raise HTTPException(status_code=404, detail="No runs found for this batch ID")
+        
+    # Clean up custom list references to deleted runs
+    if "custom_lists" in ledger:
+        for list_name, run_ids in list(ledger["custom_lists"].items()):
+            ledger["custom_lists"][list_name] = [rid for rid in run_ids if any(r["id"] == rid for r in ledger["runs"])]
+            if not ledger["custom_lists"][list_name]:
+                del ledger["custom_lists"][list_name]
+                
+    save_ledger(ledger)
+    return {"status": "success", "deleted_count": deleted_count}
+
 @app.get("/api/ledger")
 def get_ledger_records():
     return load_ledger()

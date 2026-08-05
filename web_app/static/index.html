@@ -107,67 +107,71 @@
 
         <!-- TAB 2: BATCH EVALUATOR -->
         <section id="batch-tab" class="tab-content">
-            <div class="batch-layout">
-                <div class="batch-sidebar glass-panel">
-                    <h2>Batch Execution Config</h2>
-                    <p class="section-desc">Run multiple evaluation scenarios across models sequentially.</p>
-
-                    <div class="form-group">
-                        <label>1. Select Models to Evaluate</label>
-                        <div id="batch-models-list" class="checkbox-group">
+            <div class="batch-config-grid" style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <!-- Card 1: Models & Settings -->
+                <div class="batch-config-card glass-panel" style="padding: 1.25rem;">
+                    <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem;">1. Configuration & Models</h3>
+                    
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 0.4rem;">Select Models to Evaluate</label>
+                        <div id="batch-models-list" class="checkbox-group-horizontal" style="display: flex; flex-direction: column; gap: 0.4rem; max-height: 120px; overflow-y: auto; border: var(--panel-border); border-radius: var(--border-radius-sm); padding: 0.5rem; background: rgba(0,0,0,0.05);">
                             <!-- Populated dynamically -->
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>2. Select Scenarios</label>
-                        <div class="scenarios-selector">
-                            <button id="select-all-scenarios-btn" class="btn-text">Select All</button>
-                            <button id="deselect-all-scenarios-btn" class="btn-text">Deselect All</button>
-                        </div>
-                        <div class="scenarios-selector-shortcuts" style="display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; margin-bottom: 0.6rem;">
-                            <button class="btn-chip" onclick="selectScenarioCategory('all')">All</button>
-                            <button class="btn-chip" onclick="selectScenarioCategory('benign')">All Benign</button>
-                            <button class="btn-chip" onclick="selectScenarioCategory('malicious')">All Malicious</button>
-                            <button class="btn-chip" onclick="selectScenarioCategory('crm')">CRM All</button>
-                            <button class="btn-chip" onclick="selectScenarioCategory('crm-benign')">CRM Benign</button>
-                            <button class="btn-chip" onclick="selectScenarioCategory('crm-malicious')">CRM Malicious</button>
-                            <button class="btn-chip" onclick="selectScenarioCategory('finance')">Finance All</button>
-                            <button class="btn-chip" onclick="selectScenarioCategory('finance-benign')">Finance Benign</button>
-                            <button class="btn-chip" onclick="selectScenarioCategory('finance-malicious')">Finance Malicious</button>
-                            <button class="btn-chip" onclick="selectScenarioCategory('coding')">Coding All</button>
-                            <button class="btn-chip" onclick="selectScenarioCategory('coding-benign')">Coding Benign</button>
-                            <button class="btn-chip" onclick="selectScenarioCategory('coding-malicious')">Coding Malicious</button>
-                            <button class="btn-chip" onclick="selectScenarioCategory('conference')">Conf All</button>
-                            <button class="btn-chip" onclick="selectScenarioCategory('conference-benign')">Conf Benign</button>
-                            <button class="btn-chip" onclick="selectScenarioCategory('conference-malicious')">Conf Malicious</button>
-                        </div>
-                        <div id="batch-scenarios-list" class="checkbox-group-vertical">
-                            <!-- Pre-populated scenarios -->
-                        </div>
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 0.4rem;">Batch Run Info</label>
+                        <input type="text" id="batch-name-input" class="form-control-small" placeholder="Batch Name (e.g. CRM Leak Audit)" style="width: 100%;">
+                        <input type="text" id="batch-desc-input" class="form-control-small" placeholder="Short Description (e.g. testing Slack & DNS)" style="width: 100%; margin-top: 0.4rem;">
                     </div>
 
-                    <div class="form-group" style="margin-top: 1rem;">
-                        <label>3. Batch Meta Details</label>
-                        <input type="text" id="batch-name-input" class="form-control" placeholder="E.g., June Compliance Audit">
-                        <textarea id="batch-desc-input" class="form-control" style="margin-top: 0.5rem; height: 60px; resize: none;" placeholder="E.g., Testing exfiltration channels across models..."></textarea>
+                    <div class="batch-action-buttons">
+                        <button id="start-batch-btn" class="btn btn-primary btn-full">Launch Batch Evaluation</button>
+                        <div class="btn-group-row" style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                            <button id="pause-batch-btn" class="btn btn-warning btn-full" style="display: none; flex: 1;">Pause Batch</button>
+                            <button id="resume-batch-btn" class="btn btn-success btn-full" style="display: none; flex: 1;">Resume Batch</button>
+                        </div>
+                        <button id="interrupt-batch-btn" class="btn btn-danger btn-full" style="display: none; margin-top: 0.5rem;">Stop Batch & Kill Active Run</button>
                     </div>
-
-                    <button id="start-batch-btn" class="btn btn-primary btn-full">Launch Batch Evaluation</button>
-                    <div class="btn-group-row" style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                        <button id="pause-batch-btn" class="btn btn-warning btn-full" style="display: none; flex: 1;">Pause Batch</button>
-                        <button id="resume-batch-btn" class="btn btn-success btn-full" style="display: none; flex: 1;">Resume Batch</button>
-                    </div>
-                    <button id="interrupt-batch-btn" class="btn btn-danger btn-full" style="display: none; margin-top: 0.5rem;">Stop Batch & Kill Active Run</button>
                 </div>
 
-                <div class="batch-main glass-panel">
-                    <div class="batch-header">
+                <!-- Card 2: Scenarios Selection -->
+                <div class="batch-config-card glass-panel" style="padding: 1.25rem; display: flex; flex-direction: column; max-height: 380px;">
+                    <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem;">2. Select Evaluation Scenarios</h3>
+                    
+                    <div class="scenarios-selector-shortcuts" style="display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.6rem;">
+                        <button class="btn-chip" onclick="selectScenarioCategory('all')">All</button>
+                        <button class="btn-chip" onclick="selectScenarioCategory('benign')">Benign</button>
+                        <button class="btn-chip" onclick="selectScenarioCategory('malicious')">Malicious</button>
+                        <button class="btn-chip" onclick="selectScenarioCategory('crm')">CRM All</button>
+                        <button class="btn-chip" onclick="selectScenarioCategory('crm-benign')">CRM Benign</button>
+                        <button class="btn-chip" onclick="selectScenarioCategory('crm-malicious')">CRM Malicious</button>
+                        <button class="btn-chip" onclick="selectScenarioCategory('finance')">Finance All</button>
+                        <button class="btn-chip" onclick="selectScenarioCategory('finance-benign')">Finance Benign</button>
+                        <button class="btn-chip" onclick="selectScenarioCategory('finance-malicious')">Finance Malicious</button>
+                        <button class="btn-chip" onclick="selectScenarioCategory('coding')">Coding All</button>
+                        <button class="btn-chip" onclick="selectScenarioCategory('coding-benign')">Coding Benign</button>
+                        <button class="btn-chip" onclick="selectScenarioCategory('coding-malicious')">Coding Malicious</button>
+                        <button class="btn-chip" onclick="selectScenarioCategory('conference')">Conf All</button>
+                        <button class="btn-chip" onclick="selectScenarioCategory('conference-benign')">Conf Benign</button>
+                        <button class="btn-chip" onclick="selectScenarioCategory('conference-malicious')">Conf Malicious</button>
+                    </div>
+
+                    <div id="batch-scenarios-list" class="checkbox-group-vertical" style="flex: 1; overflow-y: auto; border: var(--panel-border); border-radius: var(--border-radius-sm); padding: 0.5rem; background: rgba(0,0,0,0.05);">
+                        <!-- Pre-populated scenarios -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Execution Logs & Queue Status -->
+            <div class="batch-execution-grid" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem;">
+                <div class="batch-main glass-panel" style="padding: 1.25rem;">
+                    <div class="batch-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                         <h2>Batch Queue Status</h2>
                         <div id="batch-progress-text" class="progress-info">No batch running</div>
                     </div>
                     
-                    <div class="progress-bar-container">
+                    <div class="progress-bar-container" style="margin-bottom: 1rem;">
                         <div id="batch-progress" class="progress-bar-fill" style="width: 0%;"></div>
                     </div>
 
@@ -191,6 +195,23 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- Live Log viewer in Batch Tab -->
+                <div class="glass-panel" style="padding: 1.25rem; display: flex; flex-direction: column;">
+                    <div class="console-header" style="border-bottom: var(--panel-border); padding-bottom: 0.5rem; margin-bottom: 0.75rem;">
+                        <h3 style="font-size: 0.95rem; font-weight: 600;">Active Run Output Streams</h3>
+                    </div>
+                    <div class="console-body" style="flex: 1; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div>
+                            <div class="console-sub-header" style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.25rem;">CONSOLE STDOUT LOGS</div>
+                            <pre id="batch-live-stdout" class="log-view empty-log" style="height: 140px; overflow-y: auto; padding: 0.5rem; background: var(--bg-secondary); border-radius: 4px; font-size: 0.75rem;">Waiting for batch execution output...</pre>
+                        </div>
+                        <div>
+                            <div class="console-sub-header" style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.25rem;">SYSTEM TOOL CALL TRACES (STDERR)</div>
+                            <pre id="batch-live-stderr" class="log-view empty-log" style="height: 140px; overflow-y: auto; padding: 0.5rem; background: var(--bg-secondary); border-radius: 4px; font-size: 0.75rem;">Waiting for tool queries...</pre>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -201,16 +222,21 @@
                 <div class="ledger-sidebar glass-panel">
                     <div class="sidebar-header">
                         <h2>Execution Ledger</h2>
-                        <div class="filters">
+                        <div class="filters" style="display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.5rem;">
                             <input type="text" id="ledger-search" placeholder="Search prompts..." class="form-control-small">
-                            <select id="ledger-filter-status" class="form-control-small">
-                                <option value="all">All Statuses</option>
-                                <option value="Success (No Exfil)">Success (No Exfil)</option>
-                                <option value="Exfiltrated">Exfiltrated</option>
-                                <option value="Uncertain">Uncertain</option>
-                            </select>
-                            <select id="ledger-filter-list" class="form-control-small">
-                                <option value="all">All Groups / Reports</option>
+                            <div style="display: flex; gap: 0.3rem;">
+                                <select id="ledger-filter-status" class="form-control-small" style="flex: 1;">
+                                    <option value="all">All Statuses</option>
+                                    <option value="Success (No Exfil)">Success (No Exfil)</option>
+                                    <option value="Exfiltrated">Exfiltrated</option>
+                                    <option value="Uncertain">Uncertain</option>
+                                </select>
+                                <select id="ledger-filter-list" class="form-control-small" style="flex: 1;">
+                                    <option value="all">All Groups</option>
+                                </select>
+                            </div>
+                            <select id="ledger-filter-batch" class="form-control-small" style="width: 100%;">
+                                <option value="all">All Batch Presets</option>
                             </select>
                         </div>
                     </div>
