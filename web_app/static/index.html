@@ -125,6 +125,23 @@
                             <button id="select-all-scenarios-btn" class="btn-text">Select All</button>
                             <button id="deselect-all-scenarios-btn" class="btn-text">Deselect All</button>
                         </div>
+                        <div class="scenarios-selector-shortcuts" style="display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; margin-bottom: 0.6rem;">
+                            <button class="btn-chip" onclick="selectScenarioCategory('all')">All</button>
+                            <button class="btn-chip" onclick="selectScenarioCategory('benign')">All Benign</button>
+                            <button class="btn-chip" onclick="selectScenarioCategory('malicious')">All Malicious</button>
+                            <button class="btn-chip" onclick="selectScenarioCategory('crm')">CRM All</button>
+                            <button class="btn-chip" onclick="selectScenarioCategory('crm-benign')">CRM Benign</button>
+                            <button class="btn-chip" onclick="selectScenarioCategory('crm-malicious')">CRM Malicious</button>
+                            <button class="btn-chip" onclick="selectScenarioCategory('finance')">Finance All</button>
+                            <button class="btn-chip" onclick="selectScenarioCategory('finance-benign')">Finance Benign</button>
+                            <button class="btn-chip" onclick="selectScenarioCategory('finance-malicious')">Finance Malicious</button>
+                            <button class="btn-chip" onclick="selectScenarioCategory('coding')">Coding All</button>
+                            <button class="btn-chip" onclick="selectScenarioCategory('coding-benign')">Coding Benign</button>
+                            <button class="btn-chip" onclick="selectScenarioCategory('coding-malicious')">Coding Malicious</button>
+                            <button class="btn-chip" onclick="selectScenarioCategory('conference')">Conf All</button>
+                            <button class="btn-chip" onclick="selectScenarioCategory('conference-benign')">Conf Benign</button>
+                            <button class="btn-chip" onclick="selectScenarioCategory('conference-malicious')">Conf Malicious</button>
+                        </div>
                         <div id="batch-scenarios-list" class="checkbox-group-vertical">
                             <!-- Pre-populated scenarios -->
                         </div>

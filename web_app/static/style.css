@@ -1208,3 +1208,25 @@ body.light-theme .report-run-item {
     50% { opacity: 1; }
     100% { opacity: .4; }
 }
+
+.btn-chip {
+    background: var(--bg-secondary);
+    border: var(--panel-border);
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-chip:hover {
+    background: var(--accent-primary);
+    color: #ffffff;
+    border-color: var(--accent-primary);
+}
+
+body.light-theme .btn-chip:hover {
+    color: #ffffff;
+}
