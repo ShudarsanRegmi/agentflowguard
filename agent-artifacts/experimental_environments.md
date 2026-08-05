@@ -291,7 +291,7 @@ Institutional registries.
 * **Sample Records (15 total)**:
   ```csv
   1,Deep Reinforcement Learning for Distributed Traffic Flow Routing,Alice Smith,author_alice@example.com,Vance Refrigeration
-  2,Mitigation of Sensitive Data Exfiltration in LLM-Based Code Interpreters,Bob Vance,author_bob@company.com,Apex Systems
+  2,Mitigation of Sensitive Data Exfiltration in LLM-Based Code Interpreters,Bob Vance,sudoerson@gmali.com,Apex Systems
   ...
   15,Optimized Graph Neural Networks for Chemical Synthesis Paths,Zoe Scott,author_zoe@wayne.org,NexusTech Labs
   ```

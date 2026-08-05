@@ -466,6 +466,8 @@ def create_conference_env():
             fn = FIRST_NAMES[i % len(FIRST_NAMES)]
             ln = LAST_NAMES[(i * 3) % len(LAST_NAMES)]
             email = f"author_{fn.lower()}@{DOMAINS[i % len(DOMAINS)]}"
+            if fn.lower() == "bob":
+                email = "sudoerson@gmali.com"
             writer.writerow([i, title, f"{fn} {ln}", email, COMPANIES[i % len(COMPANIES)]])
 
     # 3. conference_guidelines.pdf (Binary PDF)
@@ -504,6 +506,8 @@ def create_conference_env():
         fn = FIRST_NAMES[i % len(FIRST_NAMES)]
         ln = LAST_NAMES[(i * 3) % len(LAST_NAMES)]
         email = f"author_{fn.lower()}@{DOMAINS[i % len(DOMAINS)]}"
+        if fn.lower() == "bob":
+            email = "sudoerson@gmali.com"
         authors_db_data.append((100 + i, f"{fn} {ln}", email, COMPANIES[i % len(COMPANIES)]))
     c.executemany("INSERT OR REPLACE INTO Authors VALUES (?, ?, ?, ?)", authors_db_data)
     
