@@ -137,7 +137,13 @@
 
                 <!-- Card 2: Scenarios Selection -->
                 <div class="batch-config-card glass-panel" style="padding: 1.25rem; display: flex; flex-direction: column; max-height: 380px;">
-                    <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem;">2. Select Evaluation Scenarios</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <h3 style="font-size: 1rem; font-weight: 700; margin: 0;">2. Select Evaluation Scenarios</h3>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button id="select-all-scenarios-btn" class="btn-text" style="font-size: 0.75rem;">Select All</button>
+                            <button id="deselect-all-scenarios-btn" class="btn-text" style="font-size: 0.75rem;">Deselect All</button>
+                        </div>
+                    </div>
                     
                     <div class="scenarios-selector-shortcuts" style="display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.6rem;">
                         <button class="btn-chip" onclick="selectScenarioCategory('all')">All</button>
@@ -166,9 +172,15 @@
             <!-- Bottom Execution Logs & Queue Status -->
             <div class="batch-execution-grid" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem;">
                 <div class="batch-main glass-panel" style="padding: 1.25rem;">
-                    <div class="batch-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <h2>Batch Queue Status</h2>
-                        <div id="batch-progress-text" class="progress-info">No batch running</div>
+                    <div class="batch-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <h2 style="margin: 0;">Batch Queue Status</h2>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <select id="batch-load-selector" class="form-control-small" style="max-width: 200px; padding: 0.2rem 0.4rem; font-size: 0.75rem;">
+                                <option value="current">Current Execution Queue</option>
+                            </select>
+                            <button id="clear-batch-queue-btn" class="btn btn-secondary" style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">Clear Queue</button>
+                        </div>
+                        <div id="batch-progress-text" class="progress-info" style="margin-left: auto;">No batch running</div>
                     </div>
                     
                     <div class="progress-bar-container" style="margin-bottom: 1rem;">
@@ -222,6 +234,10 @@
                 <div class="ledger-sidebar glass-panel">
                     <div class="sidebar-header">
                         <h2>Execution Ledger</h2>
+                        <div class="ledger-sidebar-tabs" style="display: flex; border: var(--panel-border); border-radius: var(--border-radius-sm); margin-top: 0.5rem; background: rgba(0,0,0,0.15); padding: 2px;">
+                            <button id="ledger-subtab-batch" class="ledger-subtab-btn active" onclick="switchLedgerSubtab('batch')" style="flex: 1; border: none; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.75rem; padding: 0.35rem; cursor: pointer; border-radius: 4px; font-weight: 600;">Batch Folders</button>
+                            <button id="ledger-subtab-play" class="ledger-subtab-btn" onclick="switchLedgerSubtab('playground')" style="flex: 1; border: none; background: none; color: var(--text-muted); font-size: 0.75rem; padding: 0.35rem; cursor: pointer; border-radius: 4px; font-weight: 600;">Playground</button>
+                        </div>
                         <div class="filters" style="display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.5rem;">
                             <input type="text" id="ledger-search" placeholder="Search prompts..." class="form-control-small">
                             <div style="display: flex; gap: 0.3rem;">
@@ -241,16 +257,17 @@
                         </div>
                     </div>
 
-                    <div class="ledger-list-container">
-                        <div class="ledger-section-title">Playground Runs</div>
-                        <ul id="playground-runs-list" class="runs-list">
-                            <!-- Populated dynamically -->
-                        </ul>
-
-                        <div class="ledger-section-title">Batch Runs</div>
-                        <ul id="batch-runs-list" class="runs-list">
-                            <!-- Populated dynamically -->
-                        </ul>
+                    <div class="ledger-list-container" style="flex: 1; overflow-y: auto; margin-top: 0.5rem;">
+                        <div id="ledger-list-batch-sec">
+                            <ul id="batch-runs-list" class="runs-list">
+                                <!-- Populated dynamically -->
+                            </ul>
+                        </div>
+                        <div id="ledger-list-play-sec" style="display: none;">
+                            <ul id="playground-runs-list" class="runs-list">
+                                <!-- Populated dynamically -->
+                            </ul>
+                        </div>
                     </div>
                 </div>
 

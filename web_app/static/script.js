@@ -776,6 +776,62 @@ function setupEventListeners() {
         filterBatchEl.addEventListener("change", filterLedgerList);
     }
 
+    const batchLoadSelector = document.getElementById("batch-load-selector");
+    if (batchLoadSelector) {
+        batchLoadSelector.addEventListener("change", async (e) => {
+            const val = e.target.value;
+            if (val === "current") {
+                await loadBatchState();
+            } else {
+                const batchRuns = ledgerData.runs.filter(r => r.batch_id === val);
+                batchQueue = batchRuns.map(run => ({
+                    model: run.model,
+                    agent: run.agent,
+                    scenario_id: run.id,
+                    name: run.prompt.substring(0, 30) + "...",
+                    prompt: run.prompt,
+                    status: run.exit_code === 0 ? "completed" : "failed",
+                    duration: `${run.duration}s`,
+                    run_id: run.id,
+                    batch_id: run.batch_id,
+                    batch_name: run.batch_name,
+                    batch_desc: run.batch_desc
+                }));
+                isBatchRunning = false;
+                isBatchPaused = false;
+                currentQueueIndex = batchQueue.length;
+                document.getElementById("start-batch-btn").disabled = false;
+                document.getElementById("interrupt-batch-btn").style.display = "none";
+                document.getElementById("pause-batch-btn").style.display = "none";
+                document.getElementById("resume-batch-btn").style.display = "none";
+                document.getElementById("batch-progress-text").textContent = `Historical Batch: ${batchRuns[0]?.batch_name || 'Unnamed'}`;
+                renderQueueTable();
+                updateBatchProgressUI();
+            }
+        });
+    }
+
+    const clearQueueBtn = document.getElementById("clear-batch-queue-btn");
+    if (clearQueueBtn) {
+        clearQueueBtn.addEventListener("click", async () => {
+            if (confirm("Are you sure you want to clear the current batch queue?")) {
+                batchQueue = [];
+                currentQueueIndex = 0;
+                isBatchRunning = false;
+                isBatchPaused = false;
+                document.getElementById("start-batch-btn").disabled = false;
+                document.getElementById("interrupt-batch-btn").style.display = "none";
+                document.getElementById("pause-batch-btn").style.display = "none";
+                document.getElementById("resume-batch-btn").style.display = "none";
+                document.getElementById("batch-progress-text").textContent = "Queue cleared.";
+                document.getElementById("batch-load-selector").value = "current";
+                renderQueueTable();
+                updateBatchProgressUI();
+                await saveBatchState();
+            }
+        });
+    }
+
     // Inspector Status modifier buttons
     document.querySelectorAll(".status-mod-btn").forEach(btn => {
         btn.addEventListener("click", (e) => {
@@ -1326,6 +1382,7 @@ async function loadLedger() {
         const res = await fetch("/api/ledger");
         ledgerData = await res.json();
         updateBatchFilterOptions();
+        updateBatchLoadSelectorOptions();
         renderLedgerList();
     } catch (e) {
         console.error("Error loading ledger database:", e);
@@ -1363,6 +1420,30 @@ function updateBatchFilterOptions() {
     
     const currentVal = select.value;
     select.innerHTML = '<option value="all">All Batch Presets</option>';
+    
+    const uniqueBatches = {};
+    ledgerData.runs.forEach(run => {
+        if (run.batch_id) {
+            uniqueBatches[run.batch_id] = run.batch_name || `Batch (${run.batch_id.split('_').pop()})`;
+        }
+    });
+    
+    Object.entries(uniqueBatches).forEach(([id, name]) => {
+        const opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = name;
+        select.appendChild(opt);
+    });
+    
+    select.value = currentVal;
+}
+
+function updateBatchLoadSelectorOptions() {
+    const select = document.getElementById("batch-load-selector");
+    if (!select) return;
+    
+    const currentVal = select.value;
+    select.innerHTML = '<option value="current">Current Execution Queue</option>';
     
     const uniqueBatches = {};
     ledgerData.runs.forEach(run => {
@@ -1524,6 +1605,13 @@ function selectLedgerItem(runId) {
     if (!run) return;
     
     selectedLedgerRun = run;
+    
+    // Auto-switch sub-tab to show this item
+    if (run.category === "single") {
+        switchLedgerSubtab("playground");
+    } else {
+        switchLedgerSubtab("batch");
+    }
     
     // Update active highlight classes in lists
     document.querySelectorAll(".run-item").forEach(item => item.classList.remove("active"));
@@ -1978,4 +2066,40 @@ window.selectScenarioCategory = function(category) {
         }
         chk.checked = shouldSelect;
     });
+};
+
+let activeLedgerSubtab = "batch";
+
+window.switchLedgerSubtab = function(tabName) {
+    activeLedgerSubtab = tabName;
+    const batchBtn = document.getElementById("ledger-subtab-batch");
+    const playBtn = document.getElementById("ledger-subtab-play");
+    const batchSec = document.getElementById("ledger-list-batch-sec");
+    const playSec = document.getElementById("ledger-list-play-sec");
+    
+    if (!batchBtn || !playBtn || !batchSec || !playSec) return;
+    
+    if (tabName === "batch") {
+        batchBtn.classList.add("active");
+        batchBtn.style.color = "var(--text-primary)";
+        batchBtn.style.background = "var(--bg-secondary)";
+        
+        playBtn.classList.remove("active");
+        playBtn.style.color = "var(--text-muted)";
+        playBtn.style.background = "none";
+        
+        batchSec.style.display = "block";
+        playSec.style.display = "none";
+    } else {
+        playBtn.classList.add("active");
+        playBtn.style.color = "var(--text-primary)";
+        playBtn.style.background = "var(--bg-secondary)";
+        
+        batchBtn.classList.remove("active");
+        batchBtn.style.color = "var(--text-muted)";
+        batchBtn.style.background = "none";
+        
+        batchSec.style.display = "none";
+        playSec.style.display = "block";
+    }
 };

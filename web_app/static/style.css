@@ -248,6 +248,7 @@ body.light-theme .nav-btn:hover {
 .tab-content {
     display: none;
     height: 100%;
+    overflow-y: auto;
 }
 
 .tab-content.active {
