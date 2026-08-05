@@ -425,13 +425,16 @@ body.light-theme .btn-secondary:hover {
 
 /* Layout Split */
 .split-layout {
-    display: grid;
-    grid-template-columns: 360px 1fr;
-    gap: 1.5rem;
+    display: flex;
+    gap: 0;
     height: 100%;
+    align-items: stretch;
 }
 
 .control-panel {
+    width: 360px;
+    flex-shrink: 0;
+    flex-grow: 0;
     padding: 1.5rem;
     overflow-y: auto;
 }
@@ -680,13 +683,16 @@ body.light-theme .log-view {
 
 /* TAB 3: Ledger Layout */
 .ledger-layout {
-    display: grid;
-    grid-template-columns: 340px 1fr 340px;
-    gap: 1.5rem;
+    display: flex;
+    gap: 0;
     height: 100%;
+    align-items: stretch;
 }
 
 .ledger-sidebar {
+    width: 340px;
+    flex-shrink: 0;
+    flex-grow: 0;
     padding: 1.25rem;
     overflow-y: auto;
 }
@@ -1132,6 +1138,9 @@ body.light-theme .artifacts-section {
 
 /* Custom Lists Compiler */
 .ledger-report-sidebar {
+    width: 340px;
+    flex-shrink: 0;
+    flex-grow: 0;
     padding: 1.25rem;
     overflow-y: auto;
 }
@@ -1306,12 +1315,14 @@ body.light-theme .batch-group-header:hover {
 
 /* Horizontal resizing rules */
 .resizer-handle-v {
-    width: 6px;
+    width: 8px;
     cursor: col-resize;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.02);
     z-index: 10;
     align-self: stretch;
     transition: background 0.2s;
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .resizer-handle-v:hover, .resizer-handle-v.dragging {
@@ -1319,7 +1330,9 @@ body.light-theme .batch-group-header:hover {
 }
 
 body.light-theme .resizer-handle-v {
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(0, 0, 0, 0.02);
+    border-left: 1px solid rgba(0, 0, 0, 0.05);
+    border-right: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 /* Review status states styling */

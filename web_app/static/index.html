@@ -88,6 +88,7 @@
                     <button id="run-play-btn" class="btn btn-primary" style="width: 100%;">Run Agent Session</button>
                     <button id="interrupt-play-btn" class="btn btn-danger" style="display: none; margin-top: 0.5rem; width: 100%;">Interrupt Execution</button>
                 </div>
+                <div id="playground-resizer" class="resizer-handle-v"></div>
 
                 <div class="console-panel glass-panel">
                     <div class="console-header">
@@ -270,7 +271,7 @@
                         </div>
                     </div>
                 </div>
-                <div id="ledger-resizer" class="resizer-handle-v" style="width: 8px; cursor: col-resize; background: rgba(255,255,255,0.02); z-index: 10; align-self: stretch; transition: background 0.2s;"></div>
+                <div id="ledger-resizer-left" class="resizer-handle-v" style="width: 8px; cursor: col-resize; background: rgba(255,255,255,0.02); z-index: 10; align-self: stretch; transition: background 0.2s;"></div>
 
                 <!-- Ledger Center: Inspector Panel -->
                 <div class="ledger-main glass-panel">
@@ -376,6 +377,7 @@
                         </div>
                     </div>
                 </div>
+                <div id="ledger-resizer-right" class="resizer-handle-v" style="width: 8px; cursor: col-resize; background: rgba(255,255,255,0.02); z-index: 10; align-self: stretch; transition: background 0.2s;"></div>
 
                 <!-- Ledger Right: Reports Compiler -->
                 <div class="ledger-report-sidebar glass-panel">

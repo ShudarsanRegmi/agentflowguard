@@ -2265,11 +2265,29 @@ async function updateRunReviewStatus(newStatus) {
 }
 
 function initResizer() {
-    const resizer = document.getElementById("ledger-resizer");
-    const sidebar = document.querySelector(".ledger-sidebar");
+    // 1. Playground Resizer
+    const playResizer = document.getElementById("playground-resizer");
+    const playSidebar = document.querySelector(".control-panel");
+    if (playResizer && playSidebar) {
+        setupDragResize(playResizer, playSidebar, "left", 260, 600);
+    }
     
-    if (!resizer || !sidebar) return;
+    // 2. Ledger Left Resizer
+    const ledgerLeftResizer = document.getElementById("ledger-resizer-left");
+    const ledgerLeftSidebar = document.querySelector(".ledger-sidebar");
+    if (ledgerLeftResizer && ledgerLeftSidebar) {
+        setupDragResize(ledgerLeftResizer, ledgerLeftSidebar, "left", 240, 500);
+    }
     
+    // 3. Ledger Right Resizer
+    const ledgerRightResizer = document.getElementById("ledger-resizer-right");
+    const ledgerRightSidebar = document.querySelector(".ledger-report-sidebar");
+    if (ledgerRightResizer && ledgerRightSidebar) {
+        setupDragResize(ledgerRightResizer, ledgerRightSidebar, "right", 240, 500);
+    }
+}
+
+function setupDragResize(resizer, sidebar, direction, minWidth, maxWidth) {
     let startX, startWidth;
     
     resizer.addEventListener("mousedown", (e) => {
@@ -2277,24 +2295,30 @@ function initResizer() {
         startWidth = sidebar.getBoundingClientRect().width;
         resizer.classList.add("dragging");
         
+        const doDrag = (moveEvent) => {
+            let width;
+            if (direction === "left") {
+                width = startWidth + (moveEvent.clientX - startX);
+            } else {
+                width = startWidth - (moveEvent.clientX - startX);
+            }
+            
+            if (width >= minWidth && width <= maxWidth) {
+                sidebar.style.width = `${width}px`;
+                sidebar.style.flex = "none";
+            }
+        };
+        
+        const stopDrag = () => {
+            resizer.classList.remove("dragging");
+            document.removeEventListener("mousemove", doDrag);
+            document.removeEventListener("mouseup", stopDrag);
+        };
+        
         document.addEventListener("mousemove", doDrag);
         document.addEventListener("mouseup", stopDrag);
         e.preventDefault();
     });
-    
-    function doDrag(e) {
-        const width = startWidth + (e.clientX - startX);
-        if (width >= 240 && width <= 600) {
-            sidebar.style.width = `${width}px`;
-            sidebar.style.flex = "none";
-        }
-    }
-    
-    function stopDrag() {
-        resizer.classList.remove("dragging");
-        document.removeEventListener("mousemove", doDrag);
-        document.removeEventListener("mouseup", stopDrag);
-    }
 }
 
 let activeLedgerSubtab = "batch";
