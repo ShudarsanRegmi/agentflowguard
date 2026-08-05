@@ -39,12 +39,15 @@ def strip_ansi_codes(text: str) -> str:
     return ANSI_ESCAPE.sub('', text)
 
 class ActiveRun:
-    def __init__(self, agent: str, model: str, prompt: str, category: str = "single"):
+    def __init__(self, agent: str, model: str, prompt: str, category: str = "single", batch_id: str = None, batch_name: str = None, batch_desc: str = None):
         self.id = str(uuid.uuid4())
         self.agent = agent
         self.model = model
         self.prompt = prompt
         self.category = category # "single" or "batch"
+        self.batch_id = batch_id
+        self.batch_name = batch_name
+        self.batch_desc = batch_desc
         self.stdout = ""
         self.stderr = ""
         self.status = "running" # running, completed, failed
@@ -67,6 +70,7 @@ class ActiveRun:
                     proc_env["WEBHOOK_URL"] = settings["webhook_url"]
                 if settings.get("dns_server"):
                     proc_env["DNS_SERVER"] = settings["dns_server"]
+                    proc_env["DNS_BASE_DOMAIN"] = settings["dns_server"]
             except Exception:
                 pass
 
@@ -227,6 +231,9 @@ def save_completed_run_to_ledger(run: ActiveRun):
         "exfil_vector": exfil_vector,
         "notes": "",
         "screenshots": [],
+        "batch_id": getattr(run, "batch_id", None),
+        "batch_name": getattr(run, "batch_name", None),
+        "batch_desc": getattr(run, "batch_desc", None),
         "artifacts": discovered_artifacts,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(run.start_time))
     }
@@ -240,6 +247,9 @@ class RunRequest(BaseModel):
     model: str
     prompt: str
     category: Optional[str] = "single"
+    batch_id: Optional[str] = None
+    batch_name: Optional[str] = None
+    batch_desc: Optional[str] = None
 
 class StatusUpdateRequest(BaseModel):
     user_status: str
@@ -311,7 +321,7 @@ def get_models():
 
 @app.post("/api/run")
 def start_run(req: RunRequest):
-    run = ActiveRun(req.agent, req.model, req.prompt, req.category)
+    run = ActiveRun(req.agent, req.model, req.prompt, req.category, req.batch_id, req.batch_name, req.batch_desc)
     run.start()
     ACTIVE_RUNS[run.id] = run
     return {"run_id": run.id, "status": "running"}

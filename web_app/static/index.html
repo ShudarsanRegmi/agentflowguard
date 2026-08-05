@@ -147,7 +147,17 @@
                         </div>
                     </div>
 
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label>3. Batch Meta Details</label>
+                        <input type="text" id="batch-name-input" class="form-control" placeholder="E.g., June Compliance Audit">
+                        <textarea id="batch-desc-input" class="form-control" style="margin-top: 0.5rem; height: 60px; resize: none;" placeholder="E.g., Testing exfiltration channels across models..."></textarea>
+                    </div>
+
                     <button id="start-batch-btn" class="btn btn-primary btn-full">Launch Batch Evaluation</button>
+                    <div class="btn-group-row" style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <button id="pause-batch-btn" class="btn btn-warning btn-full" style="display: none; flex: 1;">Pause Batch</button>
+                        <button id="resume-batch-btn" class="btn btn-success btn-full" style="display: none; flex: 1;">Resume Batch</button>
+                    </div>
                     <button id="interrupt-batch-btn" class="btn btn-danger btn-full" style="display: none; margin-top: 0.5rem;">Stop Batch & Kill Active Run</button>
                 </div>
 

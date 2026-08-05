@@ -709,7 +709,9 @@ let selectedLedgerRun = null;
 // Batch execution states
 let batchQueue = [];
 let isBatchRunning = false;
+let isBatchPaused = false;
 let currentQueueIndex = 0;
+let inspectorPollInterval = null;
 
 document.addEventListener("DOMContentLoaded", () => {
     initApp();
@@ -836,6 +838,7 @@ function setupEventListeners() {
         if (!isBatchRunning) return;
         if (confirm("Are you sure you want to stop the batch run and kill the active run?")) {
             isBatchRunning = false;
+            isBatchPaused = false;
             const currentItem = batchQueue[currentQueueIndex];
             if (currentItem && currentItem.run_id) {
                 try {
@@ -845,11 +848,29 @@ function setupEventListeners() {
                 }
             }
             document.getElementById("interrupt-batch-btn").style.display = "none";
+            document.getElementById("pause-batch-btn").style.display = "none";
+            document.getElementById("resume-batch-btn").style.display = "none";
             document.getElementById("start-batch-btn").disabled = false;
             updateBatchProgressUI();
             await saveBatchState();
             loadLedger();
         }
+    });
+
+    document.getElementById("pause-batch-btn").addEventListener("click", () => {
+        isBatchPaused = true;
+        document.getElementById("pause-batch-btn").style.display = "none";
+        document.getElementById("resume-batch-btn").style.display = "block";
+        document.getElementById("batch-progress-text").textContent = "Pausing after current run...";
+        saveBatchState();
+    });
+
+    document.getElementById("resume-batch-btn").addEventListener("click", () => {
+        isBatchPaused = false;
+        document.getElementById("pause-batch-btn").style.display = "block";
+        document.getElementById("resume-batch-btn").style.display = "none";
+        saveBatchState();
+        processNextBatchItem();
     });
 
     // Custom List filter change listener
@@ -1021,6 +1042,11 @@ async function launchBatchRuns() {
 
     document.getElementById("start-batch-btn").disabled = true;
     document.getElementById("interrupt-batch-btn").style.display = "block";
+    document.getElementById("pause-batch-btn").style.display = "block";
+    document.getElementById("resume-batch-btn").style.display = "none";
+    
+    // Reset pause state
+    isBatchPaused = false;
 
     // Get selected models
     const selectedModels = Array.from(document.querySelectorAll("input[name='batch-model-chk']:checked")).map(chk => chk.value);
@@ -1032,6 +1058,10 @@ async function launchBatchRuns() {
         alert("Please select at least one Model and one Scenario.");
         return;
     }
+
+    const batchName = document.getElementById("batch-name-input").value.trim() || `Batch_${Date.now()}`;
+    const batchDesc = document.getElementById("batch-desc-input").value.trim() || "Sequential evaluation run";
+    const batchId = `batch_${Date.now()}`;
 
     // Build execution queue
     batchQueue = [];
@@ -1046,7 +1076,10 @@ async function launchBatchRuns() {
                 prompt: scenario.prompt,
                 status: "pending",
                 duration: "0.0s",
-                run_id: null
+                run_id: null,
+                batch_id: batchId,
+                batch_name: batchName,
+                batch_desc: batchDesc
             });
         });
     });
@@ -1079,7 +1112,10 @@ function renderQueueTable() {
             <td>${item.name}</td>
             <td>${item.duration}</td>
             <td>
-                ${item.run_id ? `<button class="btn-text" onclick="viewRunDetails('${item.run_id}')">Inspect</button>` : '-'}
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    ${item.run_id ? `<button class="btn-text" onclick="viewRunDetails('${item.run_id}')">Inspect</button>` : ''}
+                    ${(item.status === 'completed' || item.status === 'failed') ? `<button class="btn-text" onclick="retryQueueItem(${idx})">Retry</button>` : ''}
+                </div>
             </td>
         </tr>
     `).join("");
@@ -1104,9 +1140,18 @@ function updateBatchProgressUI() {
 }
 
 async function processNextBatchItem() {
+    if (isBatchPaused) {
+        document.getElementById("pause-batch-btn").style.display = "none";
+        document.getElementById("resume-batch-btn").style.display = "block";
+        document.getElementById("batch-progress-text").textContent = `Batch paused at run ${currentQueueIndex + 1} of ${batchQueue.length}`;
+        return;
+    }
+
     if (currentQueueIndex >= batchQueue.length) {
         isBatchRunning = false;
         document.getElementById("interrupt-batch-btn").style.display = "none";
+        document.getElementById("pause-batch-btn").style.display = "none";
+        document.getElementById("resume-batch-btn").style.display = "none";
         document.getElementById("start-batch-btn").disabled = false;
         updateBatchProgressUI();
         await saveBatchState();
@@ -1129,7 +1174,10 @@ async function processNextBatchItem() {
                 agent: item.agent,
                 model: item.model,
                 prompt: item.prompt,
-                category: "batch"
+                category: "batch",
+                batch_id: item.batch_id,
+                batch_name: item.batch_name,
+                batch_desc: item.batch_desc
             })
         });
         const runData = await res.json();
@@ -1181,6 +1229,71 @@ async function pollBatchItemProgress(runId) {
     }
 }
 
+window.retryQueueItem = async function(idx) {
+    const item = batchQueue[idx];
+    if (!item) return;
+    
+    item.status = "pending";
+    item.duration = "0.0s";
+    item.run_id = null;
+    
+    renderQueueTable();
+    await saveBatchState();
+    
+    if (!isBatchRunning) {
+        isBatchRunning = true;
+        isBatchPaused = false;
+        currentQueueIndex = idx;
+        
+        document.getElementById("start-batch-btn").disabled = true;
+        document.getElementById("interrupt-batch-btn").style.display = "block";
+        document.getElementById("pause-batch-btn").style.display = "block";
+        document.getElementById("resume-batch-btn").style.display = "none";
+        
+        renderQueueTable();
+        updateBatchProgressUI();
+        await saveBatchState();
+        processNextBatchItem();
+    }
+};
+
+function startInspectorPolling(runId) {
+    if (inspectorPollInterval) clearInterval(inspectorPollInterval);
+    
+    inspectorPollInterval = setInterval(async () => {
+        try {
+            const res = await fetch(`/api/run/${runId}/status`);
+            if (res.status === 404) {
+                clearInterval(inspectorPollInterval);
+                return;
+            }
+            const data = await res.json();
+            
+            if (selectedLedgerRun && selectedLedgerRun.id === runId) {
+                document.getElementById("ins-stdout-pre").textContent = data.stdout || "[No Stdout recorded]";
+                document.getElementById("ins-stderr-pre").textContent = data.stderr || "[No Stderr traces recorded]";
+                document.getElementById("ins-duration").textContent = `${data.duration}s`;
+                document.getElementById("ins-exit").textContent = data.exit_code === null ? "N/A" : data.exit_code;
+                
+                const outPre = document.getElementById("ins-stdout-pre");
+                const errPre = document.getElementById("ins-stderr-pre");
+                outPre.scrollTop = outPre.scrollHeight;
+                errPre.scrollTop = errPre.scrollHeight;
+
+                if (data.status === "completed" || data.status === "failed") {
+                    clearInterval(inspectorPollInterval);
+                    await loadLedger();
+                    selectLedgerItem(runId);
+                }
+            } else {
+                clearInterval(inspectorPollInterval);
+            }
+        } catch (e) {
+            console.error("Error polling inspector run details:", e);
+        }
+    }, 1500);
+}
+
 // Shortcut to jump to runs ledger tab and view detail
 window.viewRunDetails = function(runId) {
     document.getElementById("ledger-nav-btn").click();
@@ -1202,6 +1315,14 @@ async function loadLedger() {
         console.error("Error loading ledger database:", e);
     }
 }
+
+window.toggleBatchGroupExpansion = function(batchId) {
+    const list = document.getElementById(`batch-group-list-${batchId}`);
+    if (list) {
+        const isCollapsed = list.style.display === "none";
+        list.style.display = isCollapsed ? "block" : "none";
+    }
+};
 
 function renderLedgerList() {
     const playList = document.getElementById("playground-runs-list");
@@ -1241,7 +1362,64 @@ function renderLedgerList() {
     `;
     
     playList.innerHTML = singleRuns.length > 0 ? singleRuns.map(mapRunItem).join("") : `<div class="table-empty">No matching records.</div>`;
-    batchList.innerHTML = batchRuns.length > 0 ? batchRuns.map(mapRunItem).join("") : `<div class="table-empty">No matching records.</div>`;
+    
+    // Group batch runs by batch_id
+    const groupedBatches = {};
+    const ungroupedBatchRuns = [];
+    
+    batchRuns.forEach(run => {
+        if (run.batch_id) {
+            if (!groupedBatches[run.batch_id]) {
+                groupedBatches[run.batch_id] = {
+                    id: run.batch_id,
+                    name: run.batch_name || `Batch (${run.batch_id.split('_').pop()})`,
+                    desc: run.batch_desc || "",
+                    timestamp: run.timestamp,
+                    runs: []
+                };
+            }
+            groupedBatches[run.batch_id].runs.push(run);
+        } else {
+            ungroupedBatchRuns.push(run);
+        }
+    });
+    
+    let batchHTML = "";
+    
+    // Render grouped batches
+    Object.values(groupedBatches).forEach(batch => {
+        const total = batch.runs.length;
+        const exfiltrated = batch.runs.filter(r => r.user_status === 'Exfiltrated').length;
+        const safe = batch.runs.filter(r => r.user_status === 'Success (No Exfil)').length;
+        const containsSelected = batch.runs.some(r => selectedLedgerRun && r.id === selectedLedgerRun.id);
+        const displayStyle = containsSelected ? "block" : "none";
+        
+        batchHTML += `
+            <div class="batch-group-container">
+                <div class="batch-group-header" onclick="toggleBatchGroupExpansion('${batch.id}')" title="${escapeHtml(batch.desc)}">
+                    <div class="batch-group-title">
+                        <span class="folder-icon">📂</span>
+                        <strong>${escapeHtml(batch.name)}</strong>
+                    </div>
+                    <div class="batch-group-stats" style="font-size:0.75rem;">
+                        <span class="status-indicator completed" style="padding:0.1rem 0.3rem; font-size:0.65rem;">${safe} Safe</span>
+                        <span class="status-indicator failed" style="padding:0.1rem 0.3rem; font-size:0.65rem; margin-left:0.2rem;">${exfiltrated} Leak</span>
+                    </div>
+                </div>
+                <ul id="batch-group-list-${batch.id}" class="runs-list" style="display: ${displayStyle}; margin-top: 0.25rem; padding-left: 0.5rem; border-left: 1px dashed rgba(255,255,255,0.1);">
+                    ${batch.runs.map(mapRunItem).join("")}
+                </ul>
+            </div>
+        `;
+    });
+    
+    // Add ungrouped batch runs
+    if (ungroupedBatchRuns.length > 0) {
+        batchHTML += `<div class="ledger-section-title" style="margin-top:0.5rem; font-size:0.75rem; color:var(--text-muted);">Individual Batch Runs</div>`;
+        batchHTML += ungroupedBatchRuns.map(mapRunItem).join("");
+    }
+    
+    batchList.innerHTML = batchHTML || `<div class="table-empty">No matching records.</div>`;
 }
 
 function getBadgeClass(status) {
@@ -1255,7 +1433,34 @@ function filterLedgerList() {
 }
 
 function selectLedgerItem(runId) {
-    const run = ledgerData.runs.find(r => r.id === runId);
+    if (inspectorPollInterval) {
+        clearInterval(inspectorPollInterval);
+        inspectorPollInterval = null;
+    }
+
+    let run = ledgerData.runs.find(r => r.id === runId);
+    if (!run) {
+        const queueItem = batchQueue.find(q => q.run_id === runId);
+        if (queueItem) {
+            run = {
+                id: runId,
+                agent: queueItem.agent,
+                model: queueItem.model,
+                prompt: queueItem.prompt,
+                timestamp: "Running...",
+                duration: queueItem.duration,
+                exit_code: null,
+                exfil_vector: "Pending...",
+                stdout: "Loading active stdout stream...",
+                stderr: "Loading tool query traces...",
+                user_status: "Running",
+                artifacts: [],
+                notes: "This task is currently executing."
+            };
+            startInspectorPolling(runId);
+        }
+    }
+    
     if (!run) return;
     
     selectedLedgerRun = run;
@@ -1632,7 +1837,8 @@ async function saveBatchState() {
             body: JSON.stringify({
                 queue: batchQueue,
                 current_index: currentQueueIndex,
-                is_running: isBatchRunning
+                is_running: isBatchRunning,
+                is_paused: isBatchPaused
             })
         });
     } catch (e) {
@@ -1647,6 +1853,7 @@ async function loadBatchState() {
         batchQueue = state.queue || [];
         currentQueueIndex = state.current_index || 0;
         isBatchRunning = state.is_running || false;
+        isBatchPaused = state.is_paused || false;
         
         if (batchQueue.length > 0) {
             renderQueueTable();
@@ -1655,12 +1862,31 @@ async function loadBatchState() {
             if (isBatchRunning) {
                 document.getElementById("interrupt-batch-btn").style.display = "block";
                 document.getElementById("start-batch-btn").disabled = true;
-                processNextBatchItem();
+                
+                if (isBatchPaused) {
+                    document.getElementById("pause-batch-btn").style.display = "none";
+                    document.getElementById("resume-batch-btn").style.display = "block";
+                    document.getElementById("batch-progress-text").textContent = `Batch paused at run ${currentQueueIndex + 1} of ${batchQueue.length}`;
+                } else {
+                    document.getElementById("pause-batch-btn").style.display = "block";
+                    document.getElementById("resume-batch-btn").style.display = "none";
+                    processNextBatchItem();
+                }
             }
         }
     } catch (e) {
         console.error("Error loading batch state:", e);
     }
+}
+
+function escapeHtml(text) {
+    if (!text) return "";
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 window.selectScenarioCategory = function(category) {
