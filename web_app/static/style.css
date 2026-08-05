@@ -403,6 +403,7 @@ body.light-theme .btn-secondary:hover {
 
 .control-panel {
     padding: 1.5rem;
+    overflow-y: auto;
 }
 
 .control-panel h2 {
@@ -527,6 +528,7 @@ body.light-theme .log-view {
 
 .batch-sidebar {
     padding: 1.5rem;
+    overflow-y: auto;
 }
 
 .scenarios-selector {
@@ -656,6 +658,7 @@ body.light-theme .log-view {
 
 .ledger-sidebar {
     padding: 1.25rem;
+    overflow-y: auto;
 }
 
 .sidebar-header h2 {
@@ -1100,6 +1103,7 @@ body.light-theme .artifacts-section {
 /* Custom Lists Compiler */
 .ledger-report-sidebar {
     padding: 1.25rem;
+    overflow-y: auto;
 }
 
 .ledger-report-sidebar h2 {
