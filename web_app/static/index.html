@@ -30,6 +30,10 @@
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                 Chat Copilots
             </button>
+            <button class="nav-btn" data-tab="settings-tab" id="settings-nav-btn">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                Settings
+            </button>
         </nav>
         <div class="header-controls">
             <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle Light/Dark Mode">
@@ -39,24 +43,6 @@
             </button>
         </div>
     </header>
-
-    <div class="global-config-bar glass-panel">
-        <div class="config-title-group">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-            <h4>Exfiltration Targets</h4>
-        </div>
-        <div class="config-inputs-row">
-            <div class="config-field">
-                <label>Webhook URL</label>
-                <input type="text" id="config-webhook-url" class="form-control-small" placeholder="http://127.0.0.1:8000/api/webhook">
-            </div>
-            <div class="config-field">
-                <label>DNS IP/Host</label>
-                <input type="text" id="config-dns-server" class="form-control-small" placeholder="127.0.0.1">
-            </div>
-            <button id="save-config-btn" class="btn btn-secondary" style="padding: 0.4rem 1rem; font-size: 0.8rem; font-weight: bold; white-space: nowrap;">Save Config</button>
-        </div>
-    </div>
 
     <main class="app-main">
         <!-- TAB 1: PLAYGROUND -->
@@ -462,6 +448,35 @@
                         <a href="/chat.html?agent=conference-agent" target="_blank" class="btn btn-primary" style="width: 100%; text-decoration: none; text-align: center; display: block; box-sizing: border-box; line-height: 2.2rem; height: 2.2rem; padding: 0;">Launch Conference Chat</a>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: SETTINGS -->
+        <section id="settings-tab" class="tab-content">
+            <div class="glass-panel" style="padding: 2.2rem; max-width: 600px; margin: 3rem auto; display: flex; flex-direction: column; gap: 1.8rem; border-radius: 12px; border: var(--panel-border);">
+                <div style="border-bottom: var(--panel-border); padding-bottom: 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--accent-primary)" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    <h2 style="font-size: 1.4rem; font-weight: 700; margin: 0; font-family: 'Outfit', sans-serif;">Global Exfiltration Settings</h2>
+                </div>
+                
+                <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5; margin: 0;">Configure exfiltration destinations and testing targets used across sandboxed evaluation processes during simulations.</p>
+                
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label for="config-webhook-url" style="font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Webhook Target URL</label>
+                    <input type="text" id="config-webhook-url" class="form-control" placeholder="http://127.0.0.1:8000/api/webhook" style="width: 100%; border-radius: var(--border-radius-sm);">
+                </div>
+                
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label for="config-dns-server" style="font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">DNS Exfiltration IP/Host</label>
+                    <input type="text" id="config-dns-server" class="form-control" placeholder="127.0.0.1" style="width: 100%; border-radius: var(--border-radius-sm);">
+                </div>
+
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label for="config-exfil-email" style="font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Email Destination Target</label>
+                    <input type="text" id="config-exfil-email" class="form-control" placeholder="sudoerson@gmail.com" style="width: 100%; border-radius: var(--border-radius-sm);">
+                </div>
+                
+                <button id="save-config-btn" class="btn btn-primary" style="margin-top: 0.5rem; width: 100%; height: 2.5rem; font-weight: 700;">Save Configuration</button>
             </div>
         </section>
     </main>

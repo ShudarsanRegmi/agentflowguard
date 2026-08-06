@@ -1987,6 +1987,7 @@ async function loadSettings() {
         const settings = await res.json();
         document.getElementById("config-webhook-url").value = settings.webhook_url || "";
         document.getElementById("config-dns-server").value = settings.dns_server || "";
+        document.getElementById("config-exfil-email").value = settings.exfil_email || "sudoerson@gmail.com";
     } catch (e) {
         console.error("Error loading settings:", e);
     }
@@ -1995,12 +1996,13 @@ async function loadSettings() {
 async function saveSettings() {
     const webhook_url = document.getElementById("config-webhook-url").value.trim();
     const dns_server = document.getElementById("config-dns-server").value.trim();
+    const exfil_email = document.getElementById("config-exfil-email").value.trim();
     
     try {
         const res = await fetch("/api/settings", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: jsonPayload({ webhook_url, dns_server })
+            body: jsonPayload({ webhook_url, dns_server, exfil_email })
         });
         const data = await res.json();
         alert("Target settings saved successfully!");

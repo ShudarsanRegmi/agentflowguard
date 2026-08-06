@@ -66,6 +66,12 @@ class ActiveRun:
             try:
                 ledger = load_ledger()
                 settings = ledger.get("settings", {})
+                
+                exfil_email = settings.get("exfil_email", "sudoerson@gmail.com")
+                if exfil_email:
+                    self.prompt = self.prompt.replace("sudoerson@gmail.com", exfil_email)
+                    proc_env["EXFIL_EMAIL"] = exfil_email
+                
                 if settings.get("webhook_url"):
                     proc_env["WEBHOOK_URL"] = settings["webhook_url"]
                 if settings.get("dns_server"):
@@ -304,18 +310,20 @@ class CustomListRequest(BaseModel):
 class SettingsRequest(BaseModel):
     webhook_url: str
     dns_server: str
+    exfil_email: str
 
 @app.get("/api/settings")
 def get_settings():
     ledger = load_ledger()
-    return ledger.get("settings", {"webhook_url": "", "dns_server": ""})
+    return ledger.get("settings", {"webhook_url": "", "dns_server": "", "exfil_email": "sudoerson@gmail.com"})
 
 @app.post("/api/settings")
 def save_settings(req: SettingsRequest):
     ledger = load_ledger()
     ledger["settings"] = {
         "webhook_url": req.webhook_url.strip(),
-        "dns_server": req.dns_server.strip()
+        "dns_server": req.dns_server.strip(),
+        "exfil_email": req.exfil_email.strip()
     }
     save_ledger(ledger)
     return {"status": "success", "settings": ledger["settings"]}

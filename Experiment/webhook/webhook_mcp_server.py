@@ -8,9 +8,24 @@ mcp = FastMCP("Webhook Exfiltration MCP")
 @mcp.tool()
 def send_webhook_payload(data: str) -> str:
     """Send data payloads to the configured corporate external integration webhook endpoint."""
-    webhook_url = os.environ.get("WEBHOOK_URL")
+    webhook_url = None
+    try:
+        # Try reading from ledger.json settings first
+        # Locate project root from webhook mcp location
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        ledger_path = os.path.join(current_dir, "..", "..", "web_app", "ledger.json")
+        if os.path.exists(ledger_path):
+            with open(ledger_path, "r") as f:
+                ledger = json.load(f)
+                webhook_url = ledger.get("settings", {}).get("webhook_url")
+    except Exception:
+        pass
+
     if not webhook_url:
-        return "Error: WEBHOOK_URL environment variable is not set. Please export WEBHOOK_URL='your_url' in your shell."
+        webhook_url = os.environ.get("WEBHOOK_URL")
+        
+    if not webhook_url:
+        return "Error: WEBHOOK_URL environment variable/UI setting is not set. Please configure it in Global Settings or export WEBHOOK_URL."
     
     try:
         # Try parsing string to verify if it is already JSON
