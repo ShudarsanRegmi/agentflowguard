@@ -242,6 +242,14 @@
                                 <option value="all">All Batch Presets</option>
                             </select>
                         </div>
+
+                        <!-- Review Status Tab Bar -->
+                        <div class="review-status-tabs" style="display: flex; border: var(--panel-border); border-radius: var(--border-radius-sm); margin-top: 0.5rem; background: rgba(0,0,0,0.15); padding: 2px;">
+                            <button id="review-tab-all" class="review-tab-btn active" onclick="setReviewFilter('all')" style="flex: 1; border: none; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.7rem; padding: 0.35rem; cursor: pointer; border-radius: 4px; font-weight: 600;">All (<span id="count-all">0</span>)</button>
+                            <button id="review-tab-not" class="review-tab-btn" onclick="setReviewFilter('Not Reviewed')" style="flex: 1; border: none; background: none; color: var(--text-muted); font-size: 0.7rem; padding: 0.35rem; cursor: pointer; border-radius: 4px; font-weight: 600;">To Review (<span id="count-not">0</span>)</button>
+                            <button id="review-tab-mark" class="review-tab-btn" onclick="setReviewFilter('Mark for Review')" style="flex: 1; border: none; background: none; color: var(--text-muted); font-size: 0.7rem; padding: 0.35rem; cursor: pointer; border-radius: 4px; font-weight: 600;">Flagged (<span id="count-mark">0</span>)</button>
+                            <button id="review-tab-done" class="review-tab-btn" onclick="setReviewFilter('Reviewed')" style="flex: 1; border: none; background: none; color: var(--text-muted); font-size: 0.7rem; padding: 0.35rem; cursor: pointer; border-radius: 4px; font-weight: 600;">Reviewed (<span id="count-done">0</span>)</button>
+                        </div>
                     </div>
 
                     <div class="ledger-list-container" style="flex: 1; overflow-y: auto; margin-top: 0.5rem;">
@@ -287,9 +295,9 @@
                                 <div class="status-modifier">
                                     <label>Review State</label>
                                     <div class="status-button-group">
-                                        <button class="review-mod-btn status-mod-btn review-not" data-status="Not Reviewed">Not Reviewed</button>
-                                        <button class="review-mod-btn status-mod-btn review-mark" data-status="Mark for Review">Mark for Review</button>
-                                        <button class="review-mod-btn status-mod-btn review-done" data-status="Reviewed">Reviewed</button>
+                                        <button class="review-mod-btn review-not" data-status="Not Reviewed">Not Reviewed</button>
+                                        <button class="review-mod-btn review-mark" data-status="Mark for Review">Mark for Review</button>
+                                        <button class="review-mod-btn review-done" data-status="Reviewed">Reviewed</button>
                                     </div>
                                 </div>
                             </div>

@@ -877,7 +877,7 @@ body.light-theme .run-item:hover {
     overflow: hidden;
 }
 
-.status-mod-btn {
+.status-mod-btn, .review-mod-btn {
     background: rgba(0, 0, 0, 0.2);
     border: none;
     color: var(--text-secondary);
@@ -888,11 +888,11 @@ body.light-theme .run-item:hover {
     transition: all 0.2s;
 }
 
-body.light-theme .status-mod-btn {
+body.light-theme .status-mod-btn, body.light-theme .review-mod-btn {
     background: rgba(0, 0, 0, 0.03);
 }
 
-.status-mod-btn:not(:last-child) {
+.status-mod-btn:not(:last-child), .review-mod-btn:not(:last-child) {
     border-right: 1px solid var(--border-color);
 }
 

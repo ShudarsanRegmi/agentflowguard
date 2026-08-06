@@ -705,6 +705,7 @@ let activePlaygroundInterval = null;
 let activeRunId = null;
 let ledgerData = { runs: [], custom_lists: {} };
 let selectedLedgerRun = null;
+let currentReviewFilter = "all";
 
 // Batch execution states
 let batchQueue = [];
@@ -1539,13 +1540,40 @@ function renderLedgerList() {
         listRunIds = ledgerData.custom_lists[filterList] || [];
     }
 
+    // Dynamic review tab counts calculation based on active category (batch vs playground)
+    const activeCategory = activeLedgerSubtab;
+    const countRuns = ledgerData.runs.filter(run => {
+        const runCategory = run.category || "single";
+        const isMatchCategory = (activeCategory === "batch" && runCategory === "batch") || (activeCategory === "playground" && runCategory === "single");
+        if (!isMatchCategory) return false;
+        
+        const statusMatch = filterStatus === "all" || run.user_status === filterStatus;
+        const listMatch = listRunIds === null || listRunIds.includes(run.id);
+        const batchMatch = filterBatch === "all" || run.batch_id === filterBatch;
+        const searchMatch = !searchVal || run.prompt.toLowerCase().includes(searchVal) || run.agent.toLowerCase().includes(searchVal) || (run.batch_name && run.batch_name.toLowerCase().includes(searchVal));
+        return statusMatch && listMatch && batchMatch && searchMatch;
+    });
+
+    const countAll = countRuns.length;
+    const countNot = countRuns.filter(r => (r.review_status || "Not Reviewed") === "Not Reviewed").length;
+    const countMark = countRuns.filter(r => r.review_status === "Mark for Review").length;
+    const countDone = countRuns.filter(r => r.review_status === "Reviewed").length;
+
+    if (document.getElementById("count-all")) document.getElementById("count-all").innerText = countAll;
+    if (document.getElementById("count-not")) document.getElementById("count-not").innerText = countNot;
+    if (document.getElementById("count-mark")) document.getElementById("count-mark").innerText = countMark;
+    if (document.getElementById("count-done")) document.getElementById("count-done").innerText = countDone;
+
     // Filter runs
     const filteredRuns = ledgerData.runs.filter(run => {
         const statusMatch = filterStatus === "all" || run.user_status === filterStatus;
         const listMatch = listRunIds === null || listRunIds.includes(run.id);
         const batchMatch = filterBatch === "all" || run.batch_id === filterBatch;
         const searchMatch = !searchVal || run.prompt.toLowerCase().includes(searchVal) || run.agent.toLowerCase().includes(searchVal) || (run.batch_name && run.batch_name.toLowerCase().includes(searchVal));
-        return statusMatch && listMatch && batchMatch && searchMatch;
+        
+        const runReview = run.review_status || "Not Reviewed";
+        const reviewMatch = currentReviewFilter === "all" || runReview === currentReviewFilter;
+        return statusMatch && listMatch && batchMatch && searchMatch && reviewMatch;
     });
 
     const singleRuns = filteredRuns.filter(r => r.category === "single");
@@ -2357,4 +2385,29 @@ window.switchLedgerSubtab = function(tabName) {
         batchSec.style.display = "none";
         playSec.style.display = "block";
     }
+    renderLedgerList();
+};
+
+window.setReviewFilter = function(status) {
+    currentReviewFilter = status;
+    
+    document.querySelectorAll(".review-tab-btn").forEach(btn => {
+        btn.classList.remove("active");
+        btn.style.background = "none";
+        btn.style.color = "var(--text-muted)";
+    });
+    
+    let activeId = "review-tab-all";
+    if (status === "Not Reviewed") activeId = "review-tab-not";
+    else if (status === "Mark for Review") activeId = "review-tab-mark";
+    else if (status === "Reviewed") activeId = "review-tab-done";
+    
+    const activeBtn = document.getElementById(activeId);
+    if (activeBtn) {
+        activeBtn.classList.add("active");
+        activeBtn.style.background = "var(--bg-secondary)";
+        activeBtn.style.color = "var(--text-primary)";
+    }
+    
+    renderLedgerList();
 };
