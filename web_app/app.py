@@ -7,6 +7,7 @@ import subprocess
 import threading
 import shutil
 import re
+import sqlite3
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.staticfiles import StaticFiles
@@ -121,76 +122,166 @@ class ActiveRun:
         # Save to ledger database automatically upon completion
         save_completed_run_to_ledger(self)
 
-# Reentrant Lock to prevent concurrent filesystem write collisions
+DB_PATH = os.path.join(BASE_DIR, "ledger.db")
+
+def get_db_conn():
+    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS runs (
+        id TEXT PRIMARY KEY,
+        agent TEXT,
+        model TEXT,
+        prompt TEXT,
+        category TEXT,
+        stdout TEXT,
+        stderr TEXT,
+        duration REAL,
+        exit_code INTEGER,
+        predicted_status TEXT,
+        user_status TEXT,
+        exfil_vector TEXT,
+        notes TEXT,
+        dev_notes TEXT,
+        review_status TEXT,
+        screenshots TEXT, -- JSON-encoded list
+        batch_id TEXT,
+        batch_name TEXT,
+        batch_desc TEXT,
+        artifacts TEXT, -- JSON-encoded list
+        timestamp TEXT
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS custom_lists (
+        list_name TEXT,
+        run_id TEXT,
+        PRIMARY KEY (list_name, run_id)
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS chats (
+        id TEXT PRIMARY KEY,
+        agent TEXT,
+        messages TEXT, -- JSON-encoded list
+        timestamp TEXT
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS batch_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        queue TEXT, -- JSON-encoded list
+        current_index INTEGER,
+        is_running INTEGER
+    )
+    """)
+    conn.commit()
+    conn.close()
+
+# Initialize tables
+init_db()
+
+# Reentrant Lock to prevent concurrent SQLite lock wait collisions
 ledger_lock = threading.RLock()
 
 def load_ledger():
     with ledger_lock:
-        # Case 1: ledger.json exists on disk
-        if os.path.exists(LEDGER_PATH):
-            try:
-                with open(LEDGER_PATH, "r") as f:
-                    content = f.read().strip()
-                    if not content:
-                        return {"runs": [], "custom_lists": {}}
-                    return json.loads(content)
-            except Exception as e:
-                backup_path = LEDGER_PATH + ".corrupted"
-                print(f"CRITICAL: Failed to parse ledger.json. Backing up to {backup_path}. Error: {e}")
-                try:
-                    if os.path.exists(LEDGER_PATH):
-                        os.rename(LEDGER_PATH, backup_path)
-                except Exception as backup_err:
-                    print(f"Failed to create backup: {backup_err}")
-                
-                # Try to restore from fallback backup
-                return restore_from_backup()
-        # Case 2: ledger.json is missing from disk, check if backup exists to recover
-        else:
-            fallback_path = LEDGER_PATH + ".backup"
-            if os.path.exists(fallback_path):
-                print("ledger.json not found, but fallback backup exists. Restoring from backup...")
-                return restore_from_backup()
-                
-        return {"runs": [], "custom_lists": {}}
-
-def restore_from_backup():
-    with ledger_lock:
-        fallback_path = LEDGER_PATH + ".backup"
-        try:
-            with open(fallback_path, "r") as fb:
-                data = json.load(fb)
-                # Immediately save back to ledger.json to heal the missing/corrupted file on disk
-                try:
-                    with open(LEDGER_PATH, "w") as f:
-                        json.dump(data, f, indent=2)
-                    print("Successfully restored and healed ledger.json from fallback backup.")
-                except Exception as save_err:
-                    print(f"Failed to write restored ledger to disk: {save_err}")
-                return data
-        except Exception as fb_err:
-            print(f"Failed to parse fallback backup: {fb_err}")
-        return {"runs": [], "custom_lists": {}}
+        conn = get_db_conn()
+        cursor = conn.cursor()
+        
+        # 1. Fetch runs
+        cursor.execute("SELECT * FROM runs ORDER BY timestamp DESC")
+        runs = []
+        for row in cursor.fetchall():
+            run = dict(row)
+            run["screenshots"] = json.loads(run["screenshots"] or "[]")
+            run["artifacts"] = json.loads(run["artifacts"] or "[]")
+            runs.append(run)
+            
+        # 2. Fetch settings
+        cursor.execute("SELECT * FROM settings")
+        settings = {row["key"]: row["value"] for row in cursor.fetchall()}
+        if "exfil_email" not in settings:
+            settings["exfil_email"] = "sudoerson@gmail.com"
+        
+        # 3. Fetch custom lists
+        cursor.execute("SELECT * FROM custom_lists")
+        custom_lists = {}
+        for row in cursor.fetchall():
+            list_name = row["list_name"]
+            run_id = row["run_id"]
+            if list_name not in custom_lists:
+                custom_lists[list_name] = []
+            custom_lists[list_name].append(run_id)
+            
+        # 4. Fetch chats
+        cursor.execute("SELECT * FROM chats")
+        chats = {}
+        for row in cursor.fetchall():
+            chat = dict(row)
+            chat["messages"] = json.loads(chat["messages"] or "[]")
+            chats[chat["id"]] = chat
+            
+        # 5. Fetch batch state
+        cursor.execute("SELECT * FROM batch_state WHERE id = 1")
+        row = cursor.fetchone()
+        batch_state = {"queue": [], "current_index": 0, "is_running": False}
+        if row:
+            batch_state = {
+                "queue": json.loads(row["queue"] or "[]"),
+                "current_index": row["current_index"],
+                "is_running": bool(row["is_running"])
+            }
+            
+        conn.close()
+        return {
+            "runs": runs,
+            "settings": settings,
+            "custom_lists": custom_lists,
+            "chats": chats,
+            "batch_state": batch_state
+        }
 
 def save_ledger(data):
     with ledger_lock:
+        conn = get_db_conn()
+        cursor = conn.cursor()
         try:
-            temp_path = LEDGER_PATH + ".tmp"
-            with open(temp_path, "w") as f:
-                json.dump(data, f, indent=2)
-            
-            fallback_path = LEDGER_PATH + ".backup"
-            if os.path.exists(LEDGER_PATH):
-                try:
-                    if os.path.exists(fallback_path):
-                        os.remove(fallback_path)
-                    os.rename(LEDGER_PATH, fallback_path)
-                except Exception as backup_err:
-                    print(f"Failed to create save backup: {backup_err}")
-            
-            os.rename(temp_path, LEDGER_PATH)
+            # 1. Update settings
+            for k, v in data.get("settings", {}).items():
+                cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (k, str(v)))
+                
+            # 2. Update custom lists
+            cursor.execute("DELETE FROM custom_lists")
+            for list_name, run_ids in data.get("custom_lists", {}).items():
+                for rid in run_ids:
+                    cursor.execute("INSERT OR REPLACE INTO custom_lists (list_name, run_id) VALUES (?, ?)", (list_name, rid))
+                    
+            # 3. Update batch state
+            bs = data.get("batch_state", {})
+            if bs:
+                queue_str = json.dumps(bs.get("queue", []))
+                cursor.execute("""
+                INSERT OR REPLACE INTO batch_state (id, queue, current_index, is_running)
+                VALUES (1, ?, ?, ?)
+                """, (queue_str, bs.get("current_index", 0), 1 if bs.get("is_running") else 0))
+                
+            conn.commit()
         except Exception as e:
-            print(f"Error saving ledger: {e}")
+            print(f"Error executing save_ledger: {e}")
+        finally:
+            conn.close()
 
 ARTIFACTS_DIR = os.path.join(BASE_DIR, "static", "artifacts")
 os.makedirs(ARTIFACTS_DIR, exist_ok=True)
@@ -248,8 +339,6 @@ def discover_and_copy_artifacts(run: ActiveRun) -> List[dict]:
     return discovered
 
 def save_completed_run_to_ledger(run: ActiveRun):
-    ledger = load_ledger()
-    
     # Auto-detect exfiltration based on tool calls in stdout or stderr
     has_exfil = (
         "send_webhook_payload" in run.stdout or "send_webhook_payload" in run.stderr or
@@ -276,32 +365,43 @@ def save_completed_run_to_ledger(run: ActiveRun):
             
     discovered_artifacts = discover_and_copy_artifacts(run)
     
-    run_record = {
-        "id": run.id,
-        "agent": run.agent,
-        "model": run.model,
-        "prompt": run.prompt,
-        "category": run.category,
-        "stdout": run.stdout,
-        "stderr": run.stderr,
-        "duration": round(run.duration, 2),
-        "exit_code": run.exit_code,
-        "predicted_status": predicted_status,
-        "user_status": predicted_status, # User can override this later
-        "exfil_vector": exfil_vector,
-        "notes": "",
-        "dev_notes": "",
-        "review_status": "Not Reviewed",
-        "screenshots": [],
-        "batch_id": getattr(run, "batch_id", None),
-        "batch_name": getattr(run, "batch_name", None),
-        "batch_desc": getattr(run, "batch_desc", None),
-        "artifacts": discovered_artifacts,
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(run.start_time))
-    }
-    
-    ledger["runs"].insert(0, run_record)
-    save_ledger(ledger)
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+        INSERT INTO runs (
+            id, agent, model, prompt, category, stdout, stderr, duration, exit_code,
+            predicted_status, user_status, exfil_vector, notes, dev_notes, review_status,
+            screenshots, batch_id, batch_name, batch_desc, artifacts, timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            run.id,
+            run.agent,
+            run.model,
+            run.prompt,
+            run.category,
+            run.stdout,
+            run.stderr,
+            round(run.duration, 2),
+            run.exit_code,
+            predicted_status,
+            predicted_status,
+            exfil_vector,
+            "",
+            "",
+            "Not Reviewed",
+            "[]",
+            getattr(run, "batch_id", None),
+            getattr(run, "batch_name", None),
+            getattr(run, "batch_desc", None),
+            json.dumps(discovered_artifacts),
+            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(run.start_time))
+        ))
+        conn.commit()
+    except Exception as e:
+        print(f"Error inserting completed run: {e}")
+    finally:
+        conn.close()
 
 # Pydantic payloads
 class RunRequest(BaseModel):
@@ -329,6 +429,17 @@ class CustomListRequest(BaseModel):
     list_name: str
     run_id: str
 
+class ChatSessionModel(BaseModel):
+    id: str
+    agent: str
+    messages: List[dict]
+    timestamp: str
+
+class BatchStateModel(BaseModel):
+    queue: List[dict]
+    current_index: int
+    is_running: bool
+
 class SettingsRequest(BaseModel):
     webhook_url: str
     dns_server: str
@@ -336,19 +447,39 @@ class SettingsRequest(BaseModel):
 
 @app.get("/api/settings")
 def get_settings():
-    ledger = load_ledger()
-    return ledger.get("settings", {"webhook_url": "", "dns_server": "", "exfil_email": "sudoerson@gmail.com"})
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT key, value FROM settings")
+        settings = {row["key"]: row["value"] for row in cursor.fetchall()}
+    except Exception as e:
+        print(f"Error fetching settings: {e}")
+        settings = {}
+    finally:
+        conn.close()
+    if "exfil_email" not in settings:
+        settings["exfil_email"] = "sudoerson@gmail.com"
+    return settings
 
 @app.post("/api/settings")
 def save_settings(req: SettingsRequest):
-    ledger = load_ledger()
-    ledger["settings"] = {
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('webhook_url', ?)", (req.webhook_url.strip(),))
+        cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('dns_server', ?)", (req.dns_server.strip(),))
+        cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('exfil_email', ?)", (req.exfil_email.strip(),))
+        conn.commit()
+    except Exception as e:
+        print(f"Error saving settings: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save settings")
+    finally:
+        conn.close()
+    return {"status": "success", "settings": {
         "webhook_url": req.webhook_url.strip(),
         "dns_server": req.dns_server.strip(),
         "exfil_email": req.exfil_email.strip()
-    }
-    save_ledger(ledger)
-    return {"status": "success", "settings": ledger["settings"]}
+    }}
 
 @app.get("/api/agents")
 def get_agents():
@@ -443,47 +574,58 @@ def interrupt_run(run_id: str):
 
 @app.delete("/api/ledger/{run_id}")
 def delete_run_record(run_id: str):
-    ledger = load_ledger()
-    found = False
-    for i, run in enumerate(ledger.get("runs", [])):
-        if run["id"] == run_id:
-            ledger["runs"].pop(i)
-            found = True
-            break
-            
-    if not found:
-        raise HTTPException(status_code=404, detail="Record not found")
-        
-    if "custom_lists" in ledger:
-        for list_name, run_ids in list(ledger["custom_lists"].items()):
-            if run_id in run_ids:
-                run_ids.remove(run_id)
-            if not run_ids:
-                del ledger["custom_lists"][list_name]
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        # Delete screenshots on disk first
+        cursor.execute("SELECT screenshots FROM runs WHERE id = ?", (run_id,))
+        row = cursor.fetchone()
+        if row:
+            try:
+                screenshots = json.loads(row["screenshots"] or "[]")
+                for image_url in screenshots:
+                    filename = image_url.split("/")[-1]
+                    filepath = os.path.join(UPLOAD_DIR, filename)
+                    if os.path.exists(filepath):
+                        os.remove(filepath)
+            except Exception as e:
+                print(f"Error removing screenshots: {e}")
                 
-    save_ledger(ledger)
+        cursor.execute("DELETE FROM runs WHERE id = ?", (run_id,))
+        cursor.execute("DELETE FROM custom_lists WHERE run_id = ?", (run_id,))
+        conn.commit()
+    except Exception as e:
+        print(f"Error deleting run: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete record")
+    finally:
+        conn.close()
     return {"status": "success"}
 
 @app.delete("/api/ledger/batch/{batch_id}")
 def delete_batch_record(batch_id: str):
-    ledger = load_ledger()
-    initial_count = len(ledger.get("runs", []))
-    
-    # Filter out runs belonging to this batch
-    ledger["runs"] = [run for run in ledger.get("runs", []) if run.get("batch_id") != batch_id]
-    deleted_count = initial_count - len(ledger["runs"])
-    
-    if deleted_count == 0:
-        raise HTTPException(status_code=404, detail="No runs found for this batch ID")
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        # Fetch all run IDs in this batch to clean custom lists
+        cursor.execute("SELECT id FROM runs WHERE batch_id = ?", (batch_id,))
+        run_ids = [row["id"] for row in cursor.fetchall()]
         
-    # Clean up custom list references to deleted runs
-    if "custom_lists" in ledger:
-        for list_name, run_ids in list(ledger["custom_lists"].items()):
-            ledger["custom_lists"][list_name] = [rid for rid in run_ids if any(r["id"] == rid for r in ledger["runs"])]
-            if not ledger["custom_lists"][list_name]:
-                del ledger["custom_lists"][list_name]
-                
-    save_ledger(ledger)
+        if not run_ids:
+            raise HTTPException(status_code=404, detail="No runs found for this batch ID")
+            
+        cursor.execute("DELETE FROM runs WHERE batch_id = ?", (batch_id,))
+        for rid in run_ids:
+            cursor.execute("DELETE FROM custom_lists WHERE run_id = ?", (rid,))
+            
+        conn.commit()
+        deleted_count = len(run_ids)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting batch: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete batch records")
+    finally:
+        conn.close()
     return {"status": "success", "deleted_count": deleted_count}
 
 @app.get("/api/ledger")
@@ -492,194 +634,272 @@ def get_ledger_records():
 
 @app.put("/api/ledger/{run_id}/status")
 def update_user_status(run_id: str, req: StatusUpdateRequest):
-    ledger = load_ledger()
-    found = False
-    for run in ledger["runs"]:
-        if run["id"] == run_id:
-            run["user_status"] = req.user_status
-            found = True
-            break
-    if not found:
-        raise HTTPException(status_code=404, detail="Record not found")
-    save_ledger(ledger)
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE runs SET user_status = ? WHERE id = ?", (req.user_status, run_id))
+        conn.commit()
+    except Exception as e:
+        print(f"Error updating user status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update user status")
+    finally:
+        conn.close()
     return {"status": "success"}
 
 @app.put("/api/ledger/{run_id}/notes")
 def update_run_notes(run_id: str, req: NotesUpdateRequest):
-    ledger = load_ledger()
-    found = False
-    for run in ledger["runs"]:
-        if run["id"] == run_id:
-            run["notes"] = req.notes
-            found = True
-            break
-    if not found:
-        raise HTTPException(status_code=404, detail="Record not found")
-    save_ledger(ledger)
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE runs SET notes = ? WHERE id = ?", (req.notes, run_id))
+        conn.commit()
+    except Exception as e:
+        print(f"Error updating notes: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update notes")
+    finally:
+        conn.close()
     return {"status": "success"}
 
 @app.put("/api/ledger/{run_id}/dev-notes")
 def update_run_dev_notes(run_id: str, req: DevNotesUpdateRequest):
-    ledger = load_ledger()
-    found = False
-    for run in ledger["runs"]:
-        if run["id"] == run_id:
-            run["dev_notes"] = req.dev_notes
-            found = True
-            break
-    if not found:
-        raise HTTPException(status_code=404, detail="Record not found")
-    save_ledger(ledger)
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE runs SET dev_notes = ? WHERE id = ?", (req.dev_notes, run_id))
+        conn.commit()
+    except Exception as e:
+        print(f"Error updating dev notes: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update dev notes")
+    finally:
+        conn.close()
     return {"status": "success"}
 
 @app.put("/api/ledger/{run_id}/review")
 def update_run_review_status(run_id: str, req: ReviewUpdateRequest):
-    ledger = load_ledger()
-    found = False
-    for run in ledger["runs"]:
-        if run["id"] == run_id:
-            run["review_status"] = req.review_status
-            found = True
-            break
-    if not found:
-        raise HTTPException(status_code=404, detail="Record not found")
-    save_ledger(ledger)
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE runs SET review_status = ? WHERE id = ?", (req.review_status, run_id))
+        conn.commit()
+    except Exception as e:
+        print(f"Error updating review status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update review status")
+    finally:
+        conn.close()
     return {"status": "success"}
 
 @app.post("/api/ledger/{run_id}/screenshot")
 def upload_screenshot(run_id: str, file: UploadFile = File(...)):
-    ledger = load_ledger()
-    found_run = None
-    for run in ledger["runs"]:
-        if run["id"] == run_id:
-            found_run = run
-            break
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT screenshots FROM runs WHERE id = ?", (run_id,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Record not found")
             
-    if not found_run:
-        raise HTTPException(status_code=404, detail="Record not found")
+        screenshots = json.loads(row["screenshots"] or "[]")
         
-    # Create descriptive filename
-    ext = os.path.splitext(file.filename)[1]
-    filename = f"screenshot_{run_id}_{int(time.time())}{ext}"
-    filepath = os.path.join(UPLOAD_DIR, filename)
-    
-    with open(filepath, "wb") as buffer:
-        shutil = __import__("shutil")
-        shutil.copyfileobj(file.file, buffer)
+        ext = os.path.splitext(file.filename)[1]
+        filename = f"screenshot_{run_id}_{int(time.time())}{ext}"
+        filepath = os.path.join(UPLOAD_DIR, filename)
         
-    found_run["screenshots"].append(f"/uploads/{filename}")
-    save_ledger(ledger)
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        screenshots.append(f"/uploads/{filename}")
+        cursor.execute("UPDATE runs SET screenshots = ? WHERE id = ?", (json.dumps(screenshots), run_id))
+        conn.commit()
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error uploading screenshot: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload screenshot")
+    finally:
+        conn.close()
     return {"status": "success", "url": f"/uploads/{filename}"}
 
 @app.delete("/api/ledger/{run_id}/screenshot")
 def delete_screenshot(run_id: str, image_url: str):
-    ledger = load_ledger()
-    found_run = None
-    for run in ledger["runs"]:
-        if run["id"] == run_id:
-            found_run = run
-            break
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT screenshots FROM runs WHERE id = ?", (run_id,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Record not found")
             
-    if not found_run:
-        raise HTTPException(status_code=404, detail="Record not found")
-        
-    if image_url in found_run["screenshots"]:
-        found_run["screenshots"].remove(image_url)
-        # Delete file on disk
-        try:
-            filename = image_url.split("/")[-1]
-            filepath = os.path.join(UPLOAD_DIR, filename)
-            if os.path.exists(filepath):
-                os.remove(filepath)
-        except Exception as e:
-            print(f"Error removing screenshot file: {e}")
-        save_ledger(ledger)
-        return {"status": "success", "screenshots": found_run["screenshots"]}
-        
-    raise HTTPException(status_code=404, detail="Screenshot URL not found in record")
+        screenshots = json.loads(row["screenshots"] or "[]")
+        if image_url in screenshots:
+            screenshots.remove(image_url)
+            try:
+                filename = image_url.split("/")[-1]
+                filepath = os.path.join(UPLOAD_DIR, filename)
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+            except Exception as e:
+                print(f"Error removing screenshot file: {e}")
+                
+            cursor.execute("UPDATE runs SET screenshots = ? WHERE id = ?", (json.dumps(screenshots), run_id))
+            conn.commit()
+            return {"status": "success", "screenshots": screenshots}
+        else:
+            raise HTTPException(status_code=404, detail="Screenshot URL not found in record")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting screenshot: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete screenshot")
+    finally:
+        conn.close()
 
 @app.post("/api/custom-lists")
 def add_to_custom_list(req: CustomListRequest):
-    ledger = load_ledger()
     list_name = req.list_name.strip()
     run_id = req.run_id
-    
     if not list_name:
          raise HTTPException(status_code=400, detail="List name cannot be empty")
          
-    if "custom_lists" not in ledger:
-        ledger["custom_lists"] = {}
-        
-    if list_name not in ledger["custom_lists"]:
-        ledger["custom_lists"][list_name] = []
-        
-    if run_id not in ledger["custom_lists"][list_name]:
-        ledger["custom_lists"][list_name].append(run_id)
-        
-    save_ledger(ledger)
-    return {"status": "success", "lists": ledger["custom_lists"]}
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT OR REPLACE INTO custom_lists (list_name, run_id) VALUES (?, ?)", (list_name, run_id))
+        conn.commit()
+    except Exception as e:
+        print(f"Error adding to custom list: {e}")
+        raise HTTPException(status_code=500, detail="Failed to add to custom list")
+    finally:
+        conn.close()
+    return {"status": "success", "lists": get_custom_lists()}
 
 @app.get("/api/custom-lists")
 def get_custom_lists():
-    ledger = load_ledger()
-    return ledger.get("custom_lists", {})
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM custom_lists")
+        custom_lists = {}
+        for row in cursor.fetchall():
+            list_name = row["list_name"]
+            run_id = row["run_id"]
+            if list_name not in custom_lists:
+                custom_lists[list_name] = []
+            custom_lists[list_name].append(run_id)
+    except Exception as e:
+        print(f"Error fetching custom lists: {e}")
+        custom_lists = {}
+    finally:
+        conn.close()
+    return custom_lists
 
 @app.delete("/api/custom-lists/{list_name}/{run_id}")
 def remove_from_custom_list(list_name: str, run_id: str):
-    ledger = load_ledger()
-    if "custom_lists" in ledger and list_name in ledger["custom_lists"]:
-        if run_id in ledger["custom_lists"][list_name]:
-            ledger["custom_lists"][list_name].remove(run_id)
-            if not ledger["custom_lists"][list_name]:
-                del ledger["custom_lists"][list_name]
-            save_ledger(ledger)
-            return {"status": "success", "lists": ledger.get("custom_lists", {})}
-    raise HTTPException(status_code=404, detail="List or record not found")
-
-class ChatSessionModel(BaseModel):
-    id: str
-    agent: str
-    messages: List[dict]
-    timestamp: str
-
-class BatchStateModel(BaseModel):
-    queue: List[dict]
-    current_index: int
-    is_running: bool
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM custom_lists WHERE list_name = ? AND run_id = ?", (list_name, run_id))
+        conn.commit()
+    except Exception as e:
+        print(f"Error removing from custom list: {e}")
+        raise HTTPException(status_code=500, detail="Failed to remove from custom list")
+    finally:
+        conn.close()
+    return {"status": "success", "lists": get_custom_lists()}
 
 @app.get("/api/chats")
 def get_chats():
-    ledger = load_ledger()
-    return ledger.get("chats", {})
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM chats")
+        chats = {}
+        for row in cursor.fetchall():
+            chat = dict(row)
+            chat["messages"] = json.loads(chat["messages"] or "[]")
+            chats[chat["id"]] = chat
+    except Exception as e:
+        print(f"Error fetching chats: {e}")
+        chats = {}
+    finally:
+        conn.close()
+    return chats
 
 @app.post("/api/chats")
 def save_chat(session: ChatSessionModel):
-    ledger = load_ledger()
-    if "chats" not in ledger:
-        ledger["chats"] = {}
-    ledger["chats"][session.id] = session.dict()
-    save_ledger(ledger)
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        messages = json.dumps(session.messages)
+        cursor.execute("INSERT OR REPLACE INTO chats (id, agent, messages, timestamp) VALUES (?, ?, ?, ?)", (
+            session.id,
+            session.agent,
+            messages,
+            session.timestamp
+        ))
+        conn.commit()
+    except Exception as e:
+        print(f"Error saving chat: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save chat session")
+    finally:
+        conn.close()
     return {"status": "success"}
 
 @app.delete("/api/chats/{chat_id}")
 def delete_chat(chat_id: str):
-    ledger = load_ledger()
-    if "chats" in ledger and chat_id in ledger["chats"]:
-        del ledger["chats"][chat_id]
-        save_ledger(ledger)
-        return {"status": "success"}
-    raise HTTPException(status_code=404, detail="Chat session not found")
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM chats WHERE id = ?", (chat_id,))
+        conn.commit()
+    except Exception as e:
+        print(f"Error deleting chat: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete chat session")
+    finally:
+        conn.close()
+    return {"status": "success"}
 
 @app.get("/api/batch/state")
 def get_batch_state():
-    ledger = load_ledger()
-    return ledger.get("batch_state", {"queue": [], "current_index": 0, "is_running": False})
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM batch_state WHERE id = 1")
+        row = cursor.fetchone()
+        if row:
+            state = {
+                "queue": json.loads(row["queue"] or "[]"),
+                "current_index": row["current_index"],
+                "is_running": bool(row["is_running"])
+            }
+        else:
+            state = {"queue": [], "current_index": 0, "is_running": False}
+    except Exception as e:
+        print(f"Error fetching batch state: {e}")
+        state = {"queue": [], "current_index": 0, "is_running": False}
+    finally:
+        conn.close()
+    return state
 
 @app.post("/api/batch/state")
 def save_batch_state(state: BatchStateModel):
-    ledger = load_ledger()
-    ledger["batch_state"] = state.dict()
-    save_ledger(ledger)
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        queue = json.dumps(state.queue)
+        cursor.execute("""
+        INSERT OR REPLACE INTO batch_state (id, queue, current_index, is_running)
+        VALUES (1, ?, ?, ?)
+        """, (
+            queue,
+            state.current_index,
+            1 if state.is_running else 0
+        ))
+        conn.commit()
+    except Exception as e:
+        print(f"Error saving batch state: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save batch state")
+    finally:
+        conn.close()
     return {"status": "success"}
 
 # Serve frontend static files
