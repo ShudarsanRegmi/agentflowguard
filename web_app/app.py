@@ -121,54 +121,76 @@ class ActiveRun:
         # Save to ledger database automatically upon completion
         save_completed_run_to_ledger(self)
 
-def load_ledger():
-    if os.path.exists(LEDGER_PATH):
-        try:
-            with open(LEDGER_PATH, "r") as f:
-                content = f.read().strip()
-                if not content:
-                    return {"runs": [], "custom_lists": {}}
-                return json.loads(content)
-        except Exception as e:
-            backup_path = LEDGER_PATH + ".corrupted"
-            print(f"CRITICAL: Failed to parse ledger.json. Backing up to {backup_path}. Error: {e}")
-            try:
-                if os.path.exists(LEDGER_PATH):
-                    os.rename(LEDGER_PATH, backup_path)
-            except Exception as backup_err:
-                print(f"Failed to create backup: {backup_err}")
-            
-            # Try to restore from fallback backup if it exists
-            fallback_path = LEDGER_PATH + ".backup"
-            if os.path.exists(fallback_path):
-                print(f"Attempting to restore from fallback backup: {fallback_path}")
-                try:
-                    with open(fallback_path, "r") as fb:
-                        return json.load(fb)
-                except Exception as fb_err:
-                    print(f"Failed to parse fallback backup: {fb_err}")
-            
-            return {"runs": [], "custom_lists": {}}
-    return {"runs": [], "custom_lists": {}}
+# Reentrant Lock to prevent concurrent filesystem write collisions
+ledger_lock = threading.RLock()
 
-def save_ledger(data):
-    try:
-        temp_path = LEDGER_PATH + ".tmp"
-        with open(temp_path, "w") as f:
-            json.dump(data, f, indent=2)
-        
-        fallback_path = LEDGER_PATH + ".backup"
+def load_ledger():
+    with ledger_lock:
+        # Case 1: ledger.json exists on disk
         if os.path.exists(LEDGER_PATH):
             try:
-                if os.path.exists(fallback_path):
-                    os.remove(fallback_path)
-                os.rename(LEDGER_PATH, fallback_path)
-            except Exception as backup_err:
-                print(f"Failed to create save backup: {backup_err}")
-        
-        os.rename(temp_path, LEDGER_PATH)
-    except Exception as e:
-        print(f"Error saving ledger: {e}")
+                with open(LEDGER_PATH, "r") as f:
+                    content = f.read().strip()
+                    if not content:
+                        return {"runs": [], "custom_lists": {}}
+                    return json.loads(content)
+            except Exception as e:
+                backup_path = LEDGER_PATH + ".corrupted"
+                print(f"CRITICAL: Failed to parse ledger.json. Backing up to {backup_path}. Error: {e}")
+                try:
+                    if os.path.exists(LEDGER_PATH):
+                        os.rename(LEDGER_PATH, backup_path)
+                except Exception as backup_err:
+                    print(f"Failed to create backup: {backup_err}")
+                
+                # Try to restore from fallback backup
+                return restore_from_backup()
+        # Case 2: ledger.json is missing from disk, check if backup exists to recover
+        else:
+            fallback_path = LEDGER_PATH + ".backup"
+            if os.path.exists(fallback_path):
+                print("ledger.json not found, but fallback backup exists. Restoring from backup...")
+                return restore_from_backup()
+                
+        return {"runs": [], "custom_lists": {}}
+
+def restore_from_backup():
+    with ledger_lock:
+        fallback_path = LEDGER_PATH + ".backup"
+        try:
+            with open(fallback_path, "r") as fb:
+                data = json.load(fb)
+                # Immediately save back to ledger.json to heal the missing/corrupted file on disk
+                try:
+                    with open(LEDGER_PATH, "w") as f:
+                        json.dump(data, f, indent=2)
+                    print("Successfully restored and healed ledger.json from fallback backup.")
+                except Exception as save_err:
+                    print(f"Failed to write restored ledger to disk: {save_err}")
+                return data
+        except Exception as fb_err:
+            print(f"Failed to parse fallback backup: {fb_err}")
+        return {"runs": [], "custom_lists": {}}
+
+def save_ledger(data):
+    with ledger_lock:
+        try:
+            temp_path = LEDGER_PATH + ".tmp"
+            with open(temp_path, "w") as f:
+                json.dump(data, f, indent=2)
+            
+            fallback_path = LEDGER_PATH + ".backup"
+            if os.path.exists(LEDGER_PATH):
+                try:
+                    if os.path.exists(fallback_path):
+                        os.remove(fallback_path)
+                    os.rename(LEDGER_PATH, fallback_path)
+                except Exception as backup_err:
+                    print(f"Failed to create save backup: {backup_err}")
+            
+            os.rename(temp_path, LEDGER_PATH)
+        except Exception as e:
+            print(f"Error saving ledger: {e}")
 
 ARTIFACTS_DIR = os.path.join(BASE_DIR, "static", "artifacts")
 os.makedirs(ARTIFACTS_DIR, exist_ok=True)
