@@ -1457,6 +1457,20 @@ async function loadLedger() {
     try {
         const res = await fetch("/api/ledger");
         ledgerData = await res.json();
+        
+        // Enrich historical runs with scenario details by prompt matching
+        if (ledgerData.runs) {
+            ledgerData.runs.forEach(run => {
+                if (!run.name || !run.scenario_id) {
+                    const matchingScenario = EVAL_SCENARIOS.find(s => s.prompt.trim() === run.prompt.trim() && s.agent === run.agent);
+                    if (matchingScenario) {
+                        run.name = matchingScenario.name;
+                        run.scenario_id = matchingScenario.id;
+                    }
+                }
+            });
+        }
+        
         updateBatchFilterOptions();
         updateBatchLoadSelectorOptions();
         renderLedgerList();
@@ -1727,6 +1741,15 @@ function selectLedgerItem(runId) {
     document.getElementById("ledger-inspector").style.display = "block";
     
     document.getElementById("ins-agent-name").textContent = `${run.agent.toUpperCase()} Execution Log`;
+    const scenarioBadge = document.getElementById("ins-scenario-badge");
+    if (scenarioBadge) {
+        if (run.name) {
+            scenarioBadge.textContent = run.name;
+            scenarioBadge.style.display = "inline-block";
+        } else {
+            scenarioBadge.style.display = "none";
+        }
+    }
     document.getElementById("ins-timestamp").textContent = run.timestamp;
     document.getElementById("ins-model").textContent = run.model.split("/").pop();
     document.getElementById("ins-duration").textContent = `${run.duration}s`;
