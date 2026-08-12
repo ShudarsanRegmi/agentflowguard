@@ -1064,11 +1064,22 @@ async function launchPlaygroundRun() {
     document.getElementById("run-play-btn").disabled = true;
     document.getElementById("interrupt-play-btn").style.display = "block";
 
+    const matchingScenario = EVAL_SCENARIOS.find(s => s.prompt.trim() === prompt && s.agent === agent);
+    const scenario_id = matchingScenario ? matchingScenario.id : null;
+    const name = matchingScenario ? matchingScenario.name : null;
+
     try {
         const res = await fetch("/api/run", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: jsonPayload({ agent, model, prompt, category: "single" })
+            body: jsonPayload({
+                agent,
+                model,
+                prompt,
+                category: "single",
+                scenario_id,
+                name
+            })
         });
         const runData = await res.json();
         activeRunId = runData.run_id;
@@ -1300,7 +1311,9 @@ async function processNextBatchItem() {
                 category: "batch",
                 batch_id: item.batch_id,
                 batch_name: item.batch_name,
-                batch_desc: item.batch_desc
+                batch_desc: item.batch_desc,
+                scenario_id: item.scenario_id,
+                name: item.name
             })
         });
         const runData = await res.json();
@@ -1579,11 +1592,13 @@ function renderLedgerList() {
     const singleRuns = filteredRuns.filter(r => r.category === "single");
     const batchRuns = filteredRuns.filter(r => r.category === "batch");
     
-    // Map list render helper
     const mapRunItem = (run) => `
         <li class="run-item ${selectedLedgerRun && selectedLedgerRun.id === run.id ? 'active' : ''}" onclick="selectLedgerItem('${run.id}')">
             <div class="run-item-header">
-                <span class="run-item-agent">${run.agent}</span>
+                <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+                    <span class="run-item-agent">${run.agent}</span>
+                    ${run.name ? `<span class="run-item-scenario" style="color:var(--accent-primary); font-size:0.65rem; font-weight:600; background:rgba(2,132,199,0.1); padding:0.1rem 0.35rem; border-radius:3px;">${escapeHtml(run.name)}</span>` : ''}
+                </div>
                 <span class="run-badge ${getBadgeClass(run.user_status)}">${run.user_status}</span>
             </div>
             <div class="run-item-prompt">${run.prompt}</div>

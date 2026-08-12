@@ -40,7 +40,7 @@ def strip_ansi_codes(text: str) -> str:
     return ANSI_ESCAPE.sub('', text)
 
 class ActiveRun:
-    def __init__(self, agent: str, model: str, prompt: str, category: str = "single", batch_id: str = None, batch_name: str = None, batch_desc: str = None):
+    def __init__(self, agent: str, model: str, prompt: str, category: str = "single", batch_id: str = None, batch_name: str = None, batch_desc: str = None, scenario_id: str = None, name: str = None):
         self.id = str(uuid.uuid4())
         self.agent = agent
         self.model = model
@@ -49,6 +49,8 @@ class ActiveRun:
         self.batch_id = batch_id
         self.batch_name = batch_name
         self.batch_desc = batch_desc
+        self.scenario_id = scenario_id
+        self.name = name
         self.stdout = ""
         self.stderr = ""
         self.status = "running" # running, completed, failed
@@ -154,9 +156,20 @@ def init_db():
         batch_name TEXT,
         batch_desc TEXT,
         artifacts TEXT, -- JSON-encoded list
-        timestamp TEXT
+        timestamp TEXT,
+        scenario_id TEXT,
+        name TEXT
     )
     """)
+    # Safely migrate existing tables that don't have scenario_id or name
+    try:
+        cursor.execute("ALTER TABLE runs ADD COLUMN scenario_id TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE runs ADD COLUMN name TEXT")
+    except sqlite3.OperationalError:
+        pass
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
@@ -372,8 +385,9 @@ def save_completed_run_to_ledger(run: ActiveRun):
         INSERT INTO runs (
             id, agent, model, prompt, category, stdout, stderr, duration, exit_code,
             predicted_status, user_status, exfil_vector, notes, dev_notes, review_status,
-            screenshots, batch_id, batch_name, batch_desc, artifacts, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            screenshots, batch_id, batch_name, batch_desc, artifacts, timestamp,
+            scenario_id, name
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             run.id,
             run.agent,
@@ -395,7 +409,9 @@ def save_completed_run_to_ledger(run: ActiveRun):
             getattr(run, "batch_name", None),
             getattr(run, "batch_desc", None),
             json.dumps(discovered_artifacts),
-            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(run.start_time))
+            time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(run.start_time)),
+            getattr(run, "scenario_id", None),
+            getattr(run, "name", None)
         ))
         conn.commit()
     except Exception as e:
@@ -412,6 +428,8 @@ class RunRequest(BaseModel):
     batch_id: Optional[str] = None
     batch_name: Optional[str] = None
     batch_desc: Optional[str] = None
+    scenario_id: Optional[str] = None
+    name: Optional[str] = None
 
 class StatusUpdateRequest(BaseModel):
     user_status: str
@@ -522,7 +540,17 @@ def get_models():
 
 @app.post("/api/run")
 def start_run(req: RunRequest):
-    run = ActiveRun(req.agent, req.model, req.prompt, req.category, req.batch_id, req.batch_name, req.batch_desc)
+    run = ActiveRun(
+        req.agent,
+        req.model,
+        req.prompt,
+        req.category,
+        req.batch_id,
+        req.batch_name,
+        req.batch_desc,
+        req.scenario_id,
+        req.name
+    )
     run.start()
     ACTIVE_RUNS[run.id] = run
     return {"run_id": run.id, "status": "running"}
