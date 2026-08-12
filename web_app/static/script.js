@@ -2235,6 +2235,7 @@ window.exportBatchReport = function(batchId) {
                     </div>
                 </div>
                 <div style="font-size: 0.85rem; margin-bottom: 0.75rem; color: #334155;">
+                    ${run.name ? `<div style="margin-bottom: 0.35rem;"><strong>Scenario ID/Code:</strong> <span style="color:#0284c7; font-weight:600;">${escapeHtml(run.name)} ${run.scenario_id ? `(${escapeHtml(run.scenario_id)})` : ''}</span></div>` : ''}
                     <strong>Prompt:</strong> ${escapeHtml(run.prompt)}
                 </div>
                 <div style="margin-bottom: 0.5rem;">
