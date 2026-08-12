@@ -208,10 +208,39 @@ init_db()
 # Reentrant Lock to prevent concurrent SQLite lock wait collisions
 ledger_lock = threading.RLock()
 
+def extract_model_from_stderr(stderr: str) -> Optional[str]:
+    if not stderr:
+        return None
+    match = re.search(r"^>\s+\S+\s+·\s+(\S+)", stderr, re.MULTILINE)
+    if match:
+        return match.group(1)
+    return None
+
+def get_opencode_default_model() -> str:
+    try:
+        db_path = os.path.expanduser("~/.local/share/opencode/opencode.db")
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT model FROM session ORDER BY time_created DESC LIMIT 1")
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                model_info = json.loads(row[0])
+                model_id = model_info.get("id")
+                provider = model_info.get("providerID")
+                return f"{provider}/{model_id}"
+    except Exception:
+        pass
+    return "opencode/deepseek-v4-flash-free"
+
 def load_ledger():
     with ledger_lock:
         conn = get_db_conn()
         cursor = conn.cursor()
+        
+        default_phys = get_opencode_default_model()
+        default_phys_short = default_phys.split("/")[-1]
         
         # 1. Fetch runs
         cursor.execute("SELECT * FROM runs ORDER BY timestamp DESC")
@@ -220,6 +249,15 @@ def load_ledger():
             run = dict(row)
             run["screenshots"] = json.loads(run["screenshots"] or "[]")
             run["artifacts"] = json.loads(run["artifacts"] or "[]")
+            
+            # Enrich actual model from stderr/config if default
+            if run.get("model") == "default" or not run.get("model"):
+                actual_model = extract_model_from_stderr(run.get("stderr", ""))
+                if actual_model:
+                    run["model"] = f"default ({actual_model})"
+                else:
+                    run["model"] = f"default ({default_phys_short})"
+                    
             runs.append(run)
             
         # 2. Fetch settings
@@ -510,25 +548,41 @@ def get_agents():
 
 @app.get("/api/models")
 def get_models():
-    # Prepend the default model option
-    models = [{"id": "default", "name": "Default Model (Configured in OpenCode)"}]
+    # Retrieve default model from session DB
+    default_phys = get_opencode_default_model()
+    default_phys_short = default_phys.split("/")[-1]
+    
+    models = [{"id": "default", "name": f"Default Model ({default_phys_short})"}]
+    
+    # Query all active models on opencode via command line
     try:
-        config_path = os.path.expanduser("~/.config/opencode/opencode.json")
-        if os.path.exists(config_path):
-            with open(config_path, "r") as f:
-                data = json.load(f)
-            providers = data.get("provider", {})
-            for p_name, p_data in providers.items():
-                p_models = p_data.get("models", {})
-                for m_id, m_data in p_models.items():
+        res = subprocess.run(
+            ["opencode", "models"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8"
+        )
+        if res.returncode == 0:
+            seen_ids = set()
+            for line in res.stdout.splitlines():
+                model_id = line.strip()
+                if model_id and model_id not in seen_ids:
+                    seen_ids.add(model_id)
+                    parts = model_id.split("/")
+                    provider = parts[0].capitalize()
+                    model_name = parts[-1]
+                    if len(parts) > 2:
+                        model_name = f"{parts[1]}/{parts[-1]}"
                     models.append({
-                        "id": f"{p_name}/{m_id}",
-                        "name": f"{m_data.get('name', m_id)} ({p_name.capitalize()})"
+                        "id": model_id,
+                        "name": f"{model_name} ({provider})"
                     })
-    except Exception:
-        pass
-        
-    if len(models) == 1: # Only default model is present
+    except Exception as e:
+        print(f"Error querying opencode models: {e}")
+
+    # Fallback if command was unparseable or returned empty
+    if len(models) == 1:
         models += [
             {"id": "nvidia/meta/llama-3.3-70b-instruct", "name": "Llama 3.3 70B (NVIDIA)"},
             {"id": "nvidia/deepseek-ai/deepseek-r1", "name": "DeepSeek R1 (NVIDIA)"},
