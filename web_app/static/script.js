@@ -1480,10 +1480,24 @@ async function loadLedger() {
 }
 
 window.toggleBatchGroupExpansion = function(batchId) {
-    const list = document.getElementById(`batch-group-list-${batchId}`);
-    if (list) {
-        const isCollapsed = list.style.display === "none";
-        list.style.display = isCollapsed ? "block" : "none";
+    const details = document.getElementById(`batch-group-details-${batchId}`);
+    if (details) {
+        const isCollapsed = details.style.display === "none";
+        details.style.display = isCollapsed ? "block" : "none";
+    }
+};
+
+window.saveBatchNotes = async function(batchId, notesValue) {
+    try {
+        await fetch(`/api/batch/${batchId}/notes`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: jsonPayload({ notes: notesValue })
+        });
+        if (!ledgerData.batch_notes) ledgerData.batch_notes = {};
+        ledgerData.batch_notes[batchId] = notesValue;
+    } catch (e) {
+        console.error("Error saving batch notes:", e);
     }
 };
 
@@ -1653,6 +1667,7 @@ function renderLedgerList() {
         const containsSelected = batch.runs.some(r => selectedLedgerRun && r.id === selectedLedgerRun.id);
         const displayStyle = containsSelected ? "block" : "none";
         
+        const notes = (ledgerData.batch_notes && ledgerData.batch_notes[batch.id]) || "";
         batchHTML += `
             <div class="batch-group-container" style="border: 1px solid rgba(255,255,255,0.05); border-radius: var(--border-radius-sm); margin-bottom: 0.5rem; background: rgba(255,255,255,0.01);">
                 <div class="batch-group-header" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(255,255,255,0.02);">
@@ -1667,9 +1682,15 @@ function renderLedgerList() {
                         <button class="btn-text" onclick="deleteBatchGroup('${batch.id}')" title="Delete entire batch run" style="margin-left:0.2rem; color: var(--danger); font-size:0.7rem; border: 1px solid rgba(239, 68, 68, 0.2); padding: 0.1rem 0.3rem; border-radius: 3px; background: rgba(239, 68, 68, 0.05);">Delete</button>
                     </div>
                 </div>
-                <ul id="batch-group-list-${batch.id}" class="runs-list" style="display: ${displayStyle}; margin-top: 0.25rem; padding-left: 0.5rem; border-left: 1px dashed rgba(255,255,255,0.1);">
-                    ${batch.runs.map(mapRunItem).join("")}
-                </ul>
+                <div id="batch-group-details-${batch.id}" style="display: ${displayStyle}; padding: 0.4rem; border-top: 1px solid rgba(255,255,255,0.03);">
+                    <div style="margin-bottom: 0.4rem; padding: 0 0.25rem;">
+                        <label style="font-size:0.65rem; color:var(--text-muted); display:block; margin-bottom:0.15rem; font-weight:600; text-transform:uppercase;">Batch Notes / Executive Summary</label>
+                        <textarea class="form-control-small" onblur="saveBatchNotes('${batch.id}', this.value)" placeholder="Type executive summary or custom notes for this batch... (autosaved)" style="width: 100%; height: 50px; resize: vertical; font-size:0.7rem; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.08); color:var(--text-primary); border-radius:4px; padding:0.25rem; font-family:inherit;">${escapeHtml(notes)}</textarea>
+                    </div>
+                    <ul id="batch-group-list-${batch.id}" class="runs-list" style="margin-top: 0.25rem; padding-left: 0.5rem; border-left: 1px dashed rgba(255,255,255,0.1);">
+                        ${batch.runs.map(mapRunItem).join("")}
+                    </ul>
+                </div>
             </div>
         `;
     });
@@ -2212,6 +2233,7 @@ window.exportBatchReport = function(batchId) {
     const batchName = batchRuns[0].batch_name || `Batch (${batchId.split('_').pop()})`;
     const batchDesc = batchRuns[0].batch_desc || "No description provided.";
     const timestamp = batchRuns[0].timestamp;
+    const batchNotes = (ledgerData.batch_notes && ledgerData.batch_notes[batchId]) || "";
     
     const total = batchRuns.length;
     const exfiltrated = batchRuns.filter(r => r.user_status === 'Exfiltrated').length;
@@ -2234,9 +2256,13 @@ window.exportBatchReport = function(batchId) {
                         </span>
                     </div>
                 </div>
-                <div style="font-size: 0.85rem; margin-bottom: 0.75rem; color: #334155;">
+                <div style="font-size: 0.85rem; margin-bottom: 0.5rem; color: #334155;">
                     ${run.name ? `<div style="margin-bottom: 0.35rem;"><strong>Scenario ID/Code:</strong> <span style="color:#0284c7; font-weight:600;">${escapeHtml(run.name)} ${run.scenario_id ? `(${escapeHtml(run.scenario_id)})` : ''}</span></div>` : ''}
                     <strong>Prompt:</strong> ${escapeHtml(run.prompt)}
+                </div>
+                <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.75rem; display: flex; gap: 1rem;">
+                    <span><strong>Duration:</strong> ${run.duration}s</span>
+                    <span><strong>Execution Time:</strong> ${run.timestamp}</span>
                 </div>
                 <div style="margin-bottom: 0.5rem;">
                     <details>
@@ -2287,6 +2313,13 @@ window.exportBatchReport = function(batchId) {
                 <div class="stat-card"><div class="stat-value">${score}%</div><div class="stat-label">Safety Score</div></div>
             </div>
         </div>
+        
+        ${batchNotes ? `
+        <div style="background: #ffffff; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 2rem;">
+            <h2 style="margin-top: 0; font-size: 1.1rem; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem; margin-bottom: 0.75rem;">Executive Summary & Notes</h2>
+            <div style="font-size: 0.9rem; color: #334155; white-space: pre-wrap;">${escapeHtml(batchNotes)}</div>
+        </div>
+        ` : ''}
         
         <h2 style="font-size: 1.2rem; margin-bottom: 1rem; color: #334155;">Detailed Run Ledger (${total} entries)</h2>
         ${runsHtml}

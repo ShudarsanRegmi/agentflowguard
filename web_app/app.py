@@ -199,6 +199,12 @@ def init_db():
         is_running INTEGER
     )
     """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS batch_notes (
+        batch_id TEXT PRIMARY KEY,
+        notes TEXT
+    )
+    """)
     conn.commit()
     conn.close()
 
@@ -295,13 +301,18 @@ def load_ledger():
                 "is_running": bool(row["is_running"])
             }
             
+        # 6. Fetch batch notes
+        cursor.execute("SELECT * FROM batch_notes")
+        batch_notes = {r["batch_id"]: r["notes"] for r in cursor.fetchall()}
+            
         conn.close()
         return {
             "runs": runs,
             "settings": settings,
             "custom_lists": custom_lists,
             "chats": chats,
-            "batch_state": batch_state
+            "batch_state": batch_state,
+            "batch_notes": batch_notes
         }
 
 def save_ledger(data):
@@ -683,6 +694,23 @@ def delete_run_record(run_id: str):
         conn.close()
     return {"status": "success"}
 
+class BatchNotesRequest(BaseModel):
+    notes: str
+
+@app.put("/api/batch/{batch_id}/notes")
+def save_batch_notes(batch_id: str, req: BatchNotesRequest):
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT OR REPLACE INTO batch_notes (batch_id, notes) VALUES (?, ?)", (batch_id, req.notes))
+        conn.commit()
+    except Exception as e:
+        print(f"Error saving batch notes: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save batch notes")
+    finally:
+        conn.close()
+    return {"status": "success"}
+
 @app.delete("/api/ledger/batch/{batch_id}")
 def delete_batch_record(batch_id: str):
     conn = get_db_conn()
@@ -696,6 +724,7 @@ def delete_batch_record(batch_id: str):
             raise HTTPException(status_code=404, detail="No runs found for this batch ID")
             
         cursor.execute("DELETE FROM runs WHERE batch_id = ?", (batch_id,))
+        cursor.execute("DELETE FROM batch_notes WHERE batch_id = ?", (batch_id,))
         for rid in run_ids:
             cursor.execute("DELETE FROM custom_lists WHERE run_id = ?", (rid,))
             
