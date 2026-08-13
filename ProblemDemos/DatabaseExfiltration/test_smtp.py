@@ -63,10 +63,10 @@ print("\n[*] Step 2: Initiating SMTP Connection...")
 try:
     if port == 465:
         print(f"    - Connecting to {SMTP_HOST}:{port} via SSL...")
-        server = smtplib.SMTP_SSL(SMTP_HOST, port, timeout=10)
+        server = smtplib.SMTP_SSL(SMTP_HOST, port, timeout=30)
     else:
         print(f"    - Connecting to {SMTP_HOST}:{port} via standard protocol...")
-        server = smtplib.SMTP(SMTP_HOST, port, timeout=10)
+        server = smtplib.SMTP(SMTP_HOST, port, timeout=30)
         print("    - Sending EHLO...")
         server.ehlo()
         try:

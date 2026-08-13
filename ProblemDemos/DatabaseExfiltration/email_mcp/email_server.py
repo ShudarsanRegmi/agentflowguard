@@ -88,10 +88,10 @@ def send_email(recipient: str, subject: str, body: str) -> str:
         # Connect to SMTP server
         if smtp_port == 465:
             logging.info(f"Connecting to SMTP server at {smtp_host}:{smtp_port} using SSL...")
-            server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10)
+            server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=30)
         else:
             logging.info(f"Connecting to SMTP server at {smtp_host}:{smtp_port} using standard connection...")
-            server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
+            server = smtplib.SMTP(smtp_host, smtp_port, timeout=30)
             logging.info("Sending EHLO...")
             server.ehlo()
             try:
