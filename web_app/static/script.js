@@ -820,6 +820,7 @@ function setupEventListeners() {
             if (confirm("Are you sure you want to clear the current batch queue?")) {
                 batchQueue = [];
                 currentQueueIndex = 0;
+                activeWorkersCount = 0;
                 isBatchRunning = false;
                 isBatchPaused = false;
                 document.getElementById("start-batch-btn").disabled = false;
@@ -1227,6 +1228,7 @@ async function launchBatchRuns() {
 
     isBatchRunning = true;
     currentQueueIndex = 0;
+    activeWorkersCount = 0;
     
     renderQueueTable();
     updateBatchProgressUI();
@@ -1389,6 +1391,7 @@ async function pollBatchItemProgress(idx, runId) {
             return;
         }
         item.duration = `${data.duration}s`;
+        renderQueueTable();
         
         const liveOut = document.getElementById("batch-live-stdout");
         const liveErr = document.getElementById("batch-live-stderr");
