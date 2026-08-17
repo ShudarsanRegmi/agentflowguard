@@ -712,6 +712,7 @@ let batchQueue = [];
 let isBatchRunning = false;
 let isBatchPaused = false;
 let currentQueueIndex = 0;
+let activeWorkersCount = 0;
 let inspectorPollInterval = null;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -943,17 +944,23 @@ function setupEventListeners() {
 
     document.getElementById("interrupt-batch-btn").addEventListener("click", async () => {
         if (!isBatchRunning) return;
-        if (confirm("Are you sure you want to stop the batch run and kill the active run?")) {
+        if (confirm("Are you sure you want to stop the batch run and kill all active runs?")) {
             isBatchRunning = false;
             isBatchPaused = false;
-            const currentItem = batchQueue[currentQueueIndex];
-            if (currentItem && currentItem.run_id) {
-                try {
-                    await fetch(`/api/run/${currentItem.run_id}/interrupt`, { method: "POST" });
-                } catch (e) {
-                    console.error("Error interrupting batch item:", e);
+            
+            // Terminate all running executions in parallel
+            for (const item of batchQueue) {
+                if (item.status === "running" && item.run_id) {
+                    try {
+                        fetch(`/api/run/${item.run_id}/interrupt`, { method: "POST" });
+                        item.status = "failed";
+                        item.duration = "Interrupted";
+                    } catch (e) {
+                        console.error("Error interrupting batch item:", e);
+                    }
                 }
             }
+            
             document.getElementById("interrupt-batch-btn").style.display = "none";
             document.getElementById("pause-batch-btn").style.display = "none";
             document.getElementById("resume-batch-btn").style.display = "none";
@@ -1259,17 +1266,17 @@ function updateBatchProgressUI() {
     const textDiv = document.getElementById("batch-progress-text");
     const progressFill = document.getElementById("batch-progress");
     
+    const completed = batchQueue.filter(item => item.status === 'completed' || item.status === 'failed').length;
+    const total = batchQueue.length;
+    
     if (!isBatchRunning) {
         textDiv.textContent = "Evaluation complete.";
         progressFill.style.width = "100%";
         return;
     }
 
-    const completed = currentQueueIndex;
-    const total = batchQueue.length;
-    const percentage = Math.round((completed / total) * 100);
-    
-    textDiv.textContent = `Processing run ${completed + 1} of ${total} (${percentage}%)`;
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    textDiv.textContent = `Processing runs: ${completed} of ${total} completed (${percentage}%)`;
     progressFill.style.width = `${percentage}%`;
 }
 
@@ -1277,11 +1284,37 @@ async function processNextBatchItem() {
     if (isBatchPaused) {
         document.getElementById("pause-batch-btn").style.display = "none";
         document.getElementById("resume-batch-btn").style.display = "block";
-        document.getElementById("batch-progress-text").textContent = `Batch paused at run ${currentQueueIndex + 1} of ${batchQueue.length}`;
+        const completed = batchQueue.filter(item => item.status === 'completed' || item.status === 'failed').length;
+        document.getElementById("batch-progress-text").textContent = `Batch paused (${completed} of ${batchQueue.length} completed)`;
         return;
     }
 
-    if (currentQueueIndex >= batchQueue.length) {
+    if (!isBatchRunning) {
+        return;
+    }
+
+    // Determine concurrency limit
+    const concurrencyVal = document.getElementById("batch-concurrency-select") ? document.getElementById("batch-concurrency-select").value : "1";
+    let limit = 1;
+    if (concurrencyVal === "half") {
+        limit = Math.max(1, Math.floor(batchQueue.length / 2));
+    } else if (concurrencyVal === "max") {
+        limit = batchQueue.length;
+    } else {
+        limit = parseInt(concurrencyVal, 10) || 1;
+    }
+
+    // Launch tasks up to parallel workers limit
+    while (activeWorkersCount < limit && currentQueueIndex < batchQueue.length) {
+        const idx = currentQueueIndex;
+        currentQueueIndex++;
+        activeWorkersCount++;
+        
+        launchQueueItem(idx);
+    }
+
+    // Completion check: when all items launched and no active workers remain
+    if (currentQueueIndex >= batchQueue.length && activeWorkersCount === 0) {
         isBatchRunning = false;
         document.getElementById("interrupt-batch-btn").style.display = "none";
         document.getElementById("pause-batch-btn").style.display = "none";
@@ -1291,10 +1324,13 @@ async function processNextBatchItem() {
         await saveBatchState();
         alert("Batch Evaluation Complete!");
         loadLedger();
-        return;
     }
+}
 
-    const item = batchQueue[currentQueueIndex];
+async function launchQueueItem(idx) {
+    const item = batchQueue[idx];
+    if (!item) return;
+    
     item.status = "running";
     renderQueueTable();
     updateBatchProgressUI();
@@ -1321,22 +1357,24 @@ async function processNextBatchItem() {
         await saveBatchState();
         
         // Start polling the individual process status
-        pollBatchItemProgress(item.run_id);
+        pollBatchItemProgress(idx, item.run_id);
     } catch (e) {
         item.status = "failed";
-        currentQueueIndex++;
+        activeWorkersCount--;
+        renderQueueTable();
         await saveBatchState();
         processNextBatchItem();
     }
 }
 
-async function pollBatchItemProgress(runId) {
+async function pollBatchItemProgress(idx, runId) {
     if (!isBatchRunning) {
-        const item = batchQueue[currentQueueIndex];
-        if (item) {
+        const item = batchQueue[idx];
+        if (item && item.status === "running") {
             item.status = "failed";
             item.duration = "Stopped";
         }
+        activeWorkersCount--;
         renderQueueTable();
         await saveBatchState();
         return;
@@ -1345,34 +1383,38 @@ async function pollBatchItemProgress(runId) {
         const res = await fetch(`/api/run/${runId}/status`);
         const data = await res.json();
         
-        const item = batchQueue[currentQueueIndex];
+        const item = batchQueue[idx];
+        if (!item) {
+            activeWorkersCount--;
+            return;
+        }
         item.duration = `${data.duration}s`;
         
         const liveOut = document.getElementById("batch-live-stdout");
         const liveErr = document.getElementById("batch-live-stderr");
-        if (liveOut && liveErr) {
-            liveOut.textContent = data.stdout || "Streaming output...";
-            liveErr.textContent = data.stderr || "Streaming traces...";
-            liveOut.classList.remove("empty-log");
-            liveErr.classList.remove("empty-log");
+        if (liveOut && liveErr && data.stdout) {
+            liveOut.textContent = `[Run: ${item.name} (${item.agent})]\n${data.stdout}`;
+            liveErr.textContent = `[Run: ${item.name} (${item.agent})]\n${data.stderr}`;
             liveOut.scrollTop = liveOut.scrollHeight;
             liveErr.scrollTop = liveErr.scrollHeight;
         }
         
         if (data.status === "completed" || data.status === "failed") {
             item.status = data.status === "completed" ? "completed" : "failed";
+            activeWorkersCount--;
             renderQueueTable();
-            
-            // Advance execution
-            currentQueueIndex++;
             await saveBatchState();
+            
+            // Trigger next available item in the queue
             processNextBatchItem();
         } else {
             // Keep polling
-            setTimeout(() => pollBatchItemProgress(runId), 2000);
+            setTimeout(() => pollBatchItemProgress(idx, runId), 2000);
         }
     } catch (e) {
         console.error("Error polling batch item:", e);
+        activeWorkersCount--;
+        processNextBatchItem();
     }
 }
 
@@ -2271,6 +2313,15 @@ async function loadBatchState() {
             renderQueueTable();
             updateBatchProgressUI();
             
+            // Re-initialize active workers and resume polling loops
+            activeWorkersCount = 0;
+            batchQueue.forEach((item, idx) => {
+                if (item.status === "running" && item.run_id) {
+                    activeWorkersCount++;
+                    pollBatchItemProgress(idx, item.run_id);
+                }
+            });
+            
             if (isBatchRunning) {
                 document.getElementById("interrupt-batch-btn").style.display = "block";
                 document.getElementById("start-batch-btn").disabled = true;
@@ -2278,7 +2329,8 @@ async function loadBatchState() {
                 if (isBatchPaused) {
                     document.getElementById("pause-batch-btn").style.display = "none";
                     document.getElementById("resume-batch-btn").style.display = "block";
-                    document.getElementById("batch-progress-text").textContent = `Batch paused at run ${currentQueueIndex + 1} of ${batchQueue.length}`;
+                    const completed = batchQueue.filter(item => item.status === 'completed' || item.status === 'failed').length;
+                    document.getElementById("batch-progress-text").textContent = `Batch paused (${completed} of ${batchQueue.length} completed)`;
                 } else {
                     document.getElementById("pause-batch-btn").style.display = "block";
                     document.getElementById("resume-batch-btn").style.display = "none";
