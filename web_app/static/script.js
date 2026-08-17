@@ -1380,27 +1380,125 @@ window.retryQueueItem = async function(idx) {
     const item = batchQueue[idx];
     if (!item) return;
     
-    item.status = "pending";
+    item.status = "running";
     item.duration = "0.0s";
-    item.run_id = null;
-    
     renderQueueTable();
     await saveBatchState();
     
-    if (!isBatchRunning) {
-        isBatchRunning = true;
-        isBatchPaused = false;
-        currentQueueIndex = idx;
-        
-        document.getElementById("start-batch-btn").disabled = true;
-        document.getElementById("interrupt-batch-btn").style.display = "block";
-        document.getElementById("pause-batch-btn").style.display = "block";
-        document.getElementById("resume-batch-btn").style.display = "none";
-        
-        renderQueueTable();
-        updateBatchProgressUI();
+    try {
+        const res = await fetch("/api/run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: jsonPayload({
+                agent: item.agent,
+                model: item.model,
+                prompt: item.prompt,
+                category: "batch",
+                batch_id: item.batch_id,
+                batch_name: item.batch_name,
+                batch_desc: item.batch_desc,
+                scenario_id: item.scenario_id,
+                name: item.name,
+                run_id: item.run_id // reuse the same run record ID to overwrite it
+            })
+        });
+        const runData = await res.json();
+        item.run_id = runData.run_id;
         await saveBatchState();
-        processNextBatchItem();
+        
+        // Poll this single queue item only without advancing the queue index
+        pollSingleQueueItem(idx, runData.run_id);
+    } catch (e) {
+        item.status = "failed";
+        renderQueueTable();
+        await saveBatchState();
+    }
+};
+
+async function pollSingleQueueItem(idx, runId) {
+    try {
+        const res = await fetch(`/api/run/${runId}/status`);
+        const data = await res.json();
+        
+        const item = batchQueue[idx];
+        if (!item) return;
+        
+        item.duration = `${data.duration}s`;
+        
+        const liveOut = document.getElementById("batch-live-stdout");
+        const liveErr = document.getElementById("batch-live-stderr");
+        if (liveOut && liveErr) {
+            liveOut.textContent = data.stdout || "Streaming output...";
+            liveErr.textContent = data.stderr || "Streaming traces...";
+            liveOut.scrollTop = liveOut.scrollHeight;
+            liveErr.scrollTop = liveErr.scrollHeight;
+        }
+        
+        if (data.status === "completed" || data.status === "failed") {
+            item.status = data.status === "completed" ? "completed" : "failed";
+            renderQueueTable();
+            await saveBatchState();
+            await loadLedger(); // refresh ledger list
+        } else {
+            setTimeout(() => pollSingleQueueItem(idx, runId), 2000);
+        }
+    } catch (e) {
+        console.error("Error polling standalone queue item:", e);
+    }
+}
+
+window.retryLedgerRun = async function() {
+    if (!selectedLedgerRun) return;
+    
+    const run = selectedLedgerRun;
+    const retryBtn = document.getElementById("retry-run-btn");
+    if (retryBtn) {
+        retryBtn.disabled = true;
+        retryBtn.textContent = "Running...";
+    }
+    
+    const outPre = document.getElementById("ins-stdout-pre");
+    const errPre = document.getElementById("ins-stderr-pre");
+    const durSpan = document.getElementById("ins-duration");
+    const exitSpan = document.getElementById("ins-exit");
+    
+    if (outPre) outPre.textContent = "Initiating rerun... Please wait.";
+    if (errPre) errPre.textContent = "Starting process streams...";
+    if (durSpan) durSpan.textContent = "Running...";
+    if (exitSpan) exitSpan.textContent = "N/A";
+    
+    try {
+        await fetch("/api/run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: jsonPayload({
+                agent: run.agent,
+                model: run.model.includes("default") ? "default" : run.model,
+                prompt: run.prompt,
+                category: run.category || "single",
+                batch_id: run.batch_id,
+                batch_name: run.batch_name,
+                batch_desc: run.batch_desc,
+                scenario_id: run.scenario_id,
+                name: run.name,
+                run_id: run.id // Pass the same ID to replace it!
+            })
+        });
+        
+        run.duration = "Running...";
+        run.exit_code = null;
+        
+        // Refresh lists immediately to show running indicator
+        await loadLedger();
+        
+        // Start polling inside details inspector
+        startInspectorPolling(run.id);
+    } catch (e) {
+        if (outPre) outPre.textContent = `Error starting rerun: ${e}`;
+        if (retryBtn) {
+            retryBtn.disabled = false;
+            retryBtn.textContent = "Retry Run";
+        }
     }
 };
 
@@ -1784,6 +1882,18 @@ function selectLedgerItem(runId) {
     document.getElementById("ins-notes").value = run.notes || "";
     document.getElementById("ins-dev-notes").value = run.dev_notes || "";
     
+    // Update retry run button state
+    const retryRunBtn = document.getElementById("retry-run-btn");
+    if (retryRunBtn) {
+        if (run.exit_code === null || run.duration === "Running...") {
+            retryRunBtn.disabled = true;
+            retryRunBtn.textContent = "Running...";
+        } else {
+            retryRunBtn.disabled = false;
+            retryRunBtn.textContent = "Retry Run";
+        }
+    }
+
     // Enable Add To Report button
     const addToReportBtn = document.getElementById("add-to-report-btn");
     addToReportBtn.disabled = !document.getElementById("report-select").value;

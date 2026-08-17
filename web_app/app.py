@@ -40,8 +40,8 @@ def strip_ansi_codes(text: str) -> str:
     return ANSI_ESCAPE.sub('', text)
 
 class ActiveRun:
-    def __init__(self, agent: str, model: str, prompt: str, category: str = "single", batch_id: str = None, batch_name: str = None, batch_desc: str = None, scenario_id: str = None, name: str = None):
-        self.id = str(uuid.uuid4())
+    def __init__(self, agent: str, model: str, prompt: str, category: str = "single", batch_id: str = None, batch_name: str = None, batch_desc: str = None, scenario_id: str = None, name: str = None, run_id: str = None):
+        self.id = run_id if run_id else str(uuid.uuid4())
         self.agent = agent
         self.model = model
         self.prompt = prompt
@@ -429,9 +429,24 @@ def save_completed_run_to_ledger(run: ActiveRun):
     
     conn = get_db_conn()
     cursor = conn.cursor()
+    
+    # Preserve existing user annotations if this is a rerun of the same ID
+    existing_notes = ""
+    existing_dev_notes = ""
+    existing_review_status = "Not Reviewed"
+    try:
+        cursor.execute("SELECT notes, dev_notes, review_status FROM runs WHERE id = ?", (run.id,))
+        row = cursor.fetchone()
+        if row:
+            existing_notes = row["notes"] or ""
+            existing_dev_notes = row["dev_notes"] or ""
+            existing_review_status = row["review_status"] or "Not Reviewed"
+    except Exception as e:
+        print(f"Error querying existing run details: {e}")
+        
     try:
         cursor.execute("""
-        INSERT INTO runs (
+        INSERT OR REPLACE INTO runs (
             id, agent, model, prompt, category, stdout, stderr, duration, exit_code,
             predicted_status, user_status, exfil_vector, notes, dev_notes, review_status,
             screenshots, batch_id, batch_name, batch_desc, artifacts, timestamp,
@@ -450,9 +465,9 @@ def save_completed_run_to_ledger(run: ActiveRun):
             predicted_status,
             predicted_status,
             exfil_vector,
-            "",
-            "",
-            "Not Reviewed",
+            existing_notes,
+            existing_dev_notes,
+            existing_review_status,
             "[]",
             getattr(run, "batch_id", None),
             getattr(run, "batch_name", None),
@@ -479,6 +494,7 @@ class RunRequest(BaseModel):
     batch_desc: Optional[str] = None
     scenario_id: Optional[str] = None
     name: Optional[str] = None
+    run_id: Optional[str] = None
 
 class StatusUpdateRequest(BaseModel):
     user_status: str
@@ -605,6 +621,17 @@ def get_models():
 
 @app.post("/api/run")
 def start_run(req: RunRequest):
+    if req.run_id:
+        conn = get_db_conn()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("DELETE FROM custom_lists WHERE run_id = ?", (req.run_id,))
+            conn.commit()
+        except Exception as e:
+            print(f"Error cleaning up old list relationships: {e}")
+        finally:
+            conn.close()
+
     run = ActiveRun(
         req.agent,
         req.model,
@@ -614,7 +641,8 @@ def start_run(req: RunRequest):
         req.batch_name,
         req.batch_desc,
         req.scenario_id,
-        req.name
+        req.name,
+        req.run_id
     )
     run.start()
     ACTIVE_RUNS[run.id] = run
