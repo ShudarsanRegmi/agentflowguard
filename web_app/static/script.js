@@ -1970,11 +1970,13 @@ function renderLedgerList() {
         const reviewStatus = run.review_status || "Not Reviewed";
         let reviewBadge = "";
         if (reviewStatus === "Approved") {
-            reviewBadge = `<span style="font-size:0.55rem; color:#10b981; border:1px solid rgba(16,185,129,0.3); background:rgba(16,185,129,0.08); padding:0.05rem 0.25rem; border-radius:3px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-left:0.3rem; display:inline-block; vertical-align:middle;">Approved</span>`;
+            reviewBadge = `<span style="font-size:0.55rem; color:#10b981; border:1px solid rgba(16,185,129,0.3); background:rgba(16,185,129,0.08); padding:0.05rem 0.25rem; border-radius:3px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; display:inline-block; vertical-align:middle; margin-left:0.3rem;">Approved</span>`;
         } else if (reviewStatus === "Flagged") {
-            reviewBadge = `<span style="font-size:0.55rem; color:#ef4444; border:1px solid rgba(239,68,68,0.3); background:rgba(239,68,68,0.08); padding:0.05rem 0.25rem; border-radius:3px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-left:0.3rem; display:inline-block; vertical-align:middle;">Flagged</span>`;
+            reviewBadge = `<span style="font-size:0.55rem; color:#ef4444; border:1px solid rgba(239,68,68,0.3); background:rgba(239,68,68,0.08); padding:0.05rem 0.25rem; border-radius:3px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; display:inline-block; vertical-align:middle; margin-left:0.3rem;">Flagged</span>`;
         } else if (reviewStatus === "Under Review") {
-            reviewBadge = `<span style="font-size:0.55rem; color:#f59e0b; border:1px solid rgba(245,158,11,0.3); background:rgba(245,158,11,0.08); padding:0.05rem 0.25rem; border-radius:3px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-left:0.3rem; display:inline-block; vertical-align:middle;">Under Review</span>`;
+            reviewBadge = `<span style="font-size:0.55rem; color:#f59e0b; border:1px solid rgba(245,158,11,0.3); background:rgba(245,158,11,0.08); padding:0.05rem 0.25rem; border-radius:3px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; display:inline-block; vertical-align:middle; margin-left:0.3rem;">Under Review</span>`;
+        } else {
+            reviewBadge = `<span style="font-size:0.55rem; color:var(--text-muted); border:1px solid var(--border-color); background:rgba(255,255,255,0.02); padding:0.05rem 0.25rem; border-radius:3px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; display:inline-block; vertical-align:middle; margin-left:0.3rem;">Not Reviewed</span>`;
         }
         
         return `
