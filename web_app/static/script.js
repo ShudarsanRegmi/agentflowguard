@@ -1585,14 +1585,14 @@ async function pollSingleQueueItem(idx, runId) {
     }
 }
 
-window.retryLedgerRun = async function() {
+window.rerunLedgerRun = async function() {
     if (!selectedLedgerRun) return;
     
     const run = selectedLedgerRun;
-    const retryBtn = document.getElementById("retry-run-btn");
-    if (retryBtn) {
-        retryBtn.disabled = true;
-        retryBtn.textContent = "Running...";
+    const rerunBtn = document.getElementById("rerun-btn");
+    if (rerunBtn) {
+        rerunBtn.disabled = true;
+        rerunBtn.textContent = "Running...";
     }
     
     const outPre = document.getElementById("ins-stdout-pre");
@@ -1633,9 +1633,9 @@ window.retryLedgerRun = async function() {
         startInspectorPolling(run.id);
     } catch (e) {
         if (outPre) outPre.textContent = `Error starting rerun: ${e}`;
-        if (retryBtn) {
-            retryBtn.disabled = false;
-            retryBtn.textContent = "Retry Run";
+        if (rerunBtn) {
+            rerunBtn.disabled = false;
+            rerunBtn.textContent = "Rerun";
         }
     }
 };
@@ -2145,15 +2145,15 @@ function selectLedgerItem(runId) {
     document.getElementById("ins-notes").value = run.notes || "";
     document.getElementById("ins-dev-notes").value = run.dev_notes || "";
     
-    // Update retry run button state
-    const retryRunBtn = document.getElementById("retry-run-btn");
-    if (retryRunBtn) {
+    // Update rerun button state
+    const rerunBtn = document.getElementById("rerun-btn");
+    if (rerunBtn) {
         if (run.exit_code === null || run.duration === "Running...") {
-            retryRunBtn.disabled = true;
-            retryRunBtn.textContent = "Running...";
+            rerunBtn.disabled = true;
+            rerunBtn.textContent = "Running...";
         } else {
-            retryRunBtn.disabled = false;
-            retryRunBtn.textContent = "Retry Run";
+            rerunBtn.disabled = false;
+            rerunBtn.textContent = "Rerun";
         }
     }
 
