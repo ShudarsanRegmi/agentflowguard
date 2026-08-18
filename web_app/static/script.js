@@ -1833,11 +1833,7 @@ window.toggleBatchLock = function(batchId) {
     renderLedgerList();
 };
 
-window.toggleRunReviewed = function(runId) {
-    const current = localStorage.getItem("run_reviewed_" + runId) === "true";
-    localStorage.setItem("run_reviewed_" + runId, (!current).toString());
-    renderLedgerList();
-};
+
 
 window.switchTerminalTab = function(idx, type) {
     const stdoutPre = document.getElementById(`batch-live-stdout-${idx}`);
@@ -1973,22 +1969,23 @@ function renderLedgerList() {
     const batchRuns = filteredRuns.filter(r => r.category === "batch");
     
     const mapRunItem = (run) => {
-        const isReviewed = localStorage.getItem("run_reviewed_" + run.id) === "true";
-        const statusIcon = isReviewed ? "🔒" : "🔓";
-        const statusText = isReviewed ? "Reviewed" : "Not Reviewed";
-        const statusColor = isReviewed ? "#10b981" : "var(--text-muted)";
-        const statusBg = isReviewed ? "rgba(16,185,129,0.08)" : "rgba(255,255,255,0.02)";
-        const statusBorder = isReviewed ? "rgba(16,185,129,0.3)" : "var(--border-color)";
-        
-        const badgeMarkup = `<span onclick="event.stopPropagation(); toggleRunReviewed('${run.id}')" title="Click to toggle Reviewed status" style="font-size:0.55rem; color:${statusColor}; border:1px solid ${statusBorder}; background:${statusBg}; padding:0.05rem 0.25rem; border-radius:3px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; display:inline-flex; align-items:center; gap:0.2rem; cursor:pointer; user-select:none; vertical-align:middle; margin-left:0.3rem;"><span>${statusIcon}</span><span>${statusText}</span></span>`;
+        const reviewStatus = run.review_status || "Not Reviewed";
+        let reviewBadge = "";
+        if (reviewStatus === "Reviewed") {
+            reviewBadge = `<span style="font-size:0.55rem; color:#10b981; border:1px solid rgba(16,185,129,0.3); background:rgba(16,185,129,0.08); padding:0.05rem 0.25rem; border-radius:3px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; display:inline-block; vertical-align:middle; margin-left:0.3rem;">Reviewed</span>`;
+        } else if (reviewStatus === "Mark for Review") {
+            reviewBadge = `<span style="font-size:0.55rem; color:#f59e0b; border:1px solid rgba(245,158,11,0.3); background:rgba(245,158,11,0.08); padding:0.05rem 0.25rem; border-radius:3px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; display:inline-block; vertical-align:middle; margin-left:0.3rem;">Mark for Review</span>`;
+        } else {
+            reviewBadge = `<span style="font-size:0.55rem; color:var(--text-muted); border:1px solid var(--border-color); background:rgba(255,255,255,0.02); padding:0.05rem 0.25rem; border-radius:3px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; display:inline-block; vertical-align:middle; margin-left:0.3rem;">Not Reviewed</span>`;
+        }
         
         return `
-            <li class="run-item ${selectedLedgerRun && selectedLedgerRun.id === run.id ? 'active' : ''}" onclick="selectLedgerItem('${run.id}')" style="${isReviewed ? 'border-left: 3px solid #10b981; background: rgba(16,185,129,0.02);' : ''}">
+            <li class="run-item ${selectedLedgerRun && selectedLedgerRun.id === run.id ? 'active' : ''}" onclick="selectLedgerItem('${run.id}')">
                 <div class="run-item-header">
                     <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
                         <span class="run-item-agent">${run.agent}</span>
                         ${run.name ? `<span class="run-item-scenario" style="color:var(--accent-primary); font-size:0.65rem; font-weight:600; background:rgba(2,132,199,0.1); padding:0.1rem 0.35rem; border-radius:3px; display:inline-block; vertical-align:middle;">${escapeHtml(run.name)}</span>` : ''}
-                        ${badgeMarkup}
+                        ${reviewBadge}
                     </div>
                     <span class="run-badge ${getBadgeClass(run.user_status)}">${run.user_status}</span>
                 </div>
@@ -2032,14 +2029,25 @@ function renderLedgerList() {
         const displayStyle = containsSelected ? "block" : "none";
         
         const notes = (ledgerData.batch_notes && ledgerData.batch_notes[batch.id]) || "";
+        const isLocked = localStorage.getItem("batch_lock_" + batch.id) === "true";
+        const lockIcon = isLocked ? "🔒" : "🔓";
+        const lockTitle = isLocked ? "Unlock Batch Results" : "Lock Batch Results (Mark Reviewed)";
+        const containerStyle = isLocked 
+            ? "border: 1px solid rgba(16,185,129,0.25); border-radius: var(--border-radius-sm); margin-bottom: 0.5rem; background: rgba(16,185,129,0.02); opacity: 0.85;"
+            : "border: 1px solid rgba(255,255,255,0.05); border-radius: var(--border-radius-sm); margin-bottom: 0.5rem; background: rgba(255,255,255,0.01);";
+        const headerStyle = isLocked
+            ? "display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(16,185,129,0.05);"
+            : "display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(255,255,255,0.02);";
         
         batchHTML += `
-            <div class="batch-group-container" style="border: 1px solid rgba(255,255,255,0.05); border-radius: var(--border-radius-sm); margin-bottom: 0.5rem; background: rgba(255,255,255,0.01);">
-                <div class="batch-group-header" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(255,255,255,0.02);">
+            <div class="batch-group-container" style="${containerStyle}">
+                <div class="batch-group-header" style="${headerStyle}">
                     <div class="batch-group-title" style="display: flex; align-items: center; gap: 0.35rem;">
                         <span class="folder-icon" onclick="toggleBatchGroupExpansion('${batch.id}')" style="cursor: pointer;">📂</span>
-                        <strong onclick="toggleBatchGroupExpansion('${batch.id}')" style="cursor: pointer;">${escapeHtml(batch.name)}</strong>
+                        <strong onclick="toggleBatchGroupExpansion('${batch.id}')" style="cursor: pointer; color: ${isLocked ? '#10b981' : 'var(--text-primary)'};">${escapeHtml(batch.name)}</strong>
                         <span onclick="event.stopPropagation(); renameBatchGroup('${batch.id}', \`${escapeHtml(batch.name.replace(/`/g, '\\`'))}\`)" title="Rename Batch" style="cursor: pointer; font-size: 0.7rem; color: var(--accent-primary); opacity: 0.7; user-select: none;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">✏️</span>
+                        <span onclick="event.stopPropagation(); toggleBatchLock('${batch.id}')" title="${lockTitle}" style="cursor: pointer; font-size: 0.75rem; user-select: none; margin-left: 0.2rem;">${lockIcon}</span>
+                        ${isLocked ? `<span style="font-size:0.55rem; font-weight:bold; color:#10b981; background:rgba(16,185,129,0.15); padding:0.05rem 0.25rem; border-radius:3px; text-transform:uppercase; letter-spacing:0.3px; user-select:none;">Reviewed</span>` : ''}
                     </div>
                     <div class="batch-group-stats" style="display: flex; align-items: center; gap: 0.4rem;">
                         <span class="status-indicator completed" style="padding:0.1rem 0.3rem; font-size:0.65rem;">${safe} Safe</span>
