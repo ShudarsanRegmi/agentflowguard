@@ -1738,19 +1738,28 @@ window.saveBatchNotes = async function(batchId, notesValue) {
     }
 };
 
-window.saveBatchMetaName = async function(batchId, newName) {
+window.renameBatchGroup = async function(batchId, currentName) {
     if (!batchId) return;
+    const newName = prompt("Enter new batch name:", currentName);
+    if (newName === null) return;
+    
+    const trimmed = newName.trim();
+    if (!trimmed) {
+        alert("Batch name cannot be empty.");
+        return;
+    }
+    
     try {
         await fetch(`/api/batch/${batchId}/meta`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: jsonPayload({ name: newName })
+            body: jsonPayload({ name: trimmed })
         });
         
         // Update local state in memory
         ledgerData.runs.forEach(run => {
             if (run.batch_id === batchId) {
-                run.batch_name = newName;
+                run.batch_name = trimmed;
             }
         });
         
@@ -1758,8 +1767,18 @@ window.saveBatchMetaName = async function(batchId, newName) {
         updateBatchFilterOptions();
         updateBatchLoadSelectorOptions();
         renderLedgerList();
+        
+        // Update inspector display if current run is in renamed batch
+        if (selectedLedgerRun && selectedLedgerRun.batch_id === batchId) {
+            selectedLedgerRun.batch_name = trimmed;
+            const displayEl = document.getElementById("ins-batch-name-display");
+            if (displayEl) {
+                displayEl.textContent = trimmed;
+            }
+        }
     } catch (e) {
-        console.error("Error saving batch metadata name:", e);
+        console.error("Error renaming batch:", e);
+        alert("Failed to rename batch.");
     }
 };
 
@@ -1933,9 +1952,10 @@ function renderLedgerList() {
         batchHTML += `
             <div class="batch-group-container" style="border: 1px solid rgba(255,255,255,0.05); border-radius: var(--border-radius-sm); margin-bottom: 0.5rem; background: rgba(255,255,255,0.01);">
                 <div class="batch-group-header" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(255,255,255,0.02);">
-                    <div class="batch-group-title" onclick="toggleBatchGroupExpansion('${batch.id}')" style="cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
-                        <span class="folder-icon">📂</span>
-                        <strong>${escapeHtml(batch.name)}</strong>
+                    <div class="batch-group-title" style="display: flex; align-items: center; gap: 0.3rem;">
+                        <span class="folder-icon" onclick="toggleBatchGroupExpansion('${batch.id}')" style="cursor: pointer;">📂</span>
+                        <strong onclick="toggleBatchGroupExpansion('${batch.id}')" style="cursor: pointer;">${escapeHtml(batch.name)}</strong>
+                        <span onclick="event.stopPropagation(); renameBatchGroup('${batch.id}', \`${escapeHtml(batch.name.replace(/`/g, '\\`'))}\`)" title="Rename Batch" style="cursor: pointer; font-size: 0.7rem; margin-left: 0.2rem; color: var(--accent-primary); opacity: 0.7; user-select: none;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">✏️</span>
                     </div>
                     <div class="batch-group-stats" style="display: flex; align-items: center; gap: 0.4rem;">
                         <span class="status-indicator completed" style="padding:0.1rem 0.3rem; font-size:0.65rem;">${safe} Safe</span>
@@ -2045,16 +2065,10 @@ function selectLedgerItem(runId) {
     if (batchMetaContainer) {
         if (run.category === "batch" && run.batch_id) {
             batchMetaContainer.style.display = "flex";
-            const nameInput = document.getElementById("ins-batch-name-input");
+            const nameDisplay = document.getElementById("ins-batch-name-display");
             const descEl = document.getElementById("ins-batch-desc");
-            if (nameInput) {
-                nameInput.value = run.batch_name || "";
-                nameInput.onblur = () => saveBatchMetaName(run.batch_id, nameInput.value);
-                nameInput.onkeydown = (e) => {
-                    if (e.key === "Enter") {
-                        nameInput.blur();
-                    }
-                };
+            if (nameDisplay) {
+                nameDisplay.textContent = run.batch_name || `Batch (${run.batch_id.split('_').pop()})`;
             }
             if (descEl) {
                 descEl.textContent = run.batch_desc || "No description provided.";
