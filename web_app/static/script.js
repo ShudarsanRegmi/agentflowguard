@@ -1350,15 +1350,13 @@ function ensureTerminalCardExists(idx, item) {
                 <span>🖥️ ${escapeHtml(item.name)} (${item.agent})</span>
                 <span id="term-status-badge-${idx}" style="font-size:0.65rem; padding:0.05rem 0.35rem; border-radius:3px; background:rgba(2,132,199,0.15); color:var(--accent-primary); font-weight:bold;">RUNNING</span>
             </div>
-            <div style="display: flex; flex-direction: column; gap: 0.4rem;">
-                <div>
-                    <div style="font-size: 0.6rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.15rem; text-transform: uppercase;">STDOUT</div>
-                    <pre id="batch-live-stdout-${idx}" style="height: 100px; overflow-y: auto; padding: 0.35rem; background: #000; color: #10b981; border-radius: 4px; font-size: 0.7rem; font-family: monospace; white-space: pre-wrap; margin: 0; border: 1px solid rgba(255,255,255,0.03);">Streaming output...</pre>
-                </div>
-                <div>
-                    <div style="font-size: 0.6rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.15rem; text-transform: uppercase;">STDERR / Traces</div>
-                    <pre id="batch-live-stderr-${idx}" style="height: 100px; overflow-y: auto; padding: 0.35rem; background: #000; color: #f59e0b; border-radius: 4px; font-size: 0.7rem; font-family: monospace; white-space: pre-wrap; margin: 0; border: 1px solid rgba(255,255,255,0.03);">Streaming traces...</pre>
-                </div>
+            <div class="terminal-tabs-header" style="display: flex; gap: 0.4rem; margin-bottom: 0.4rem;">
+                <button onclick="switchTerminalTab(${idx}, 'stdout')" id="term-tab-stdout-${idx}" class="term-tab-btn" style="font-size: 0.6rem; padding: 0.15rem 0.4rem; border: none; background: rgba(255,255,255,0.1); color: var(--text-primary); border-radius: 3px; cursor: pointer; font-weight: 600;">STDOUT</button>
+                <button onclick="switchTerminalTab(${idx}, 'stderr')" id="term-tab-stderr-${idx}" class="term-tab-btn" style="font-size: 0.6rem; padding: 0.15rem 0.4rem; border: none; background: rgba(0,0,0,0.25); color: var(--text-muted); border-radius: 3px; cursor: pointer; font-weight: 600;">STDERR</button>
+            </div>
+            <div style="position: relative;">
+                <pre id="batch-live-stdout-${idx}" style="height: 120px; overflow-y: auto; padding: 0.35rem; background: #000; color: #10b981; border-radius: 4px; font-size: 0.7rem; font-family: monospace; white-space: pre-wrap; margin: 0; border: 1px solid rgba(255,255,255,0.03);">Streaming output...</pre>
+                <pre id="batch-live-stderr-${idx}" style="height: 120px; overflow-y: auto; padding: 0.35rem; background: #000; color: #f59e0b; border-radius: 4px; font-size: 0.7rem; font-family: monospace; white-space: pre-wrap; margin: 0; border: 1px solid rgba(255,255,255,0.03); display: none;">Streaming traces...</pre>
             </div>
         `;
         container.appendChild(term);
@@ -1373,6 +1371,7 @@ function ensureTerminalCardExists(idx, item) {
         const termStderr = document.getElementById(`batch-live-stderr-${idx}`);
         if (termStdout) termStdout.textContent = "Streaming output...";
         if (termStderr) termStderr.textContent = "Streaming traces...";
+        switchTerminalTab(idx, 'stdout');
     }
 }
 
@@ -1767,15 +1766,6 @@ window.renameBatchGroup = async function(batchId, currentName) {
         updateBatchFilterOptions();
         updateBatchLoadSelectorOptions();
         renderLedgerList();
-        
-        // Update inspector display if current run is in renamed batch
-        if (selectedLedgerRun && selectedLedgerRun.batch_id === batchId) {
-            selectedLedgerRun.batch_name = trimmed;
-            const displayEl = document.getElementById("ins-batch-name-display");
-            if (displayEl) {
-                displayEl.textContent = trimmed;
-            }
-        }
     } catch (e) {
         console.error("Error renaming batch:", e);
         alert("Failed to rename batch.");
@@ -1796,6 +1786,81 @@ window.deleteBatchGroup = async function(batchId) {
         await loadLedger();
     } catch (e) {
         console.error("Error deleting batch group:", e);
+    }
+};
+
+let isReportsSidebarCollapsed = false;
+let reportsSidebarLastWidth = "280px";
+
+window.toggleReportsSidebar = function() {
+    const sidebar = document.querySelector(".ledger-report-sidebar");
+    const resizer = document.getElementById("ledger-resizer-right");
+    const btn = document.getElementById("toggle-reports-sidebar-btn");
+    const contentElements = sidebar.querySelectorAll(".form-group, .report-actions-row, .report-runs-container, .section-desc");
+    const titleEl = sidebar.querySelector("h2");
+    
+    isReportsSidebarCollapsed = !isReportsSidebarCollapsed;
+    
+    if (isReportsSidebarCollapsed) {
+        reportsSidebarLastWidth = sidebar.style.width || "280px";
+        sidebar.style.width = "45px";
+        sidebar.style.minWidth = "45px";
+        sidebar.style.padding = "0.75rem 0.25rem";
+        if (resizer) resizer.style.display = "none";
+        if (btn) {
+            btn.innerHTML = "⬅️";
+            btn.title = "Expand Reports Sidebar";
+        }
+        if (titleEl) titleEl.style.display = "none";
+        contentElements.forEach(el => el.style.display = "none");
+    } else {
+        sidebar.style.width = reportsSidebarLastWidth;
+        sidebar.style.minWidth = "200px";
+        sidebar.style.padding = "1.25rem";
+        if (resizer) resizer.style.display = "block";
+        if (btn) {
+            btn.innerHTML = "➡️ Hide";
+            btn.title = "Collapse Reports Sidebar";
+        }
+        if (titleEl) titleEl.style.display = "block";
+        contentElements.forEach(el => el.style.display = "block");
+    }
+};
+
+window.toggleBatchLock = function(batchId) {
+    const current = localStorage.getItem("batch_lock_" + batchId) === "true";
+    localStorage.setItem("batch_lock_" + batchId, (!current).toString());
+    renderLedgerList();
+};
+
+window.switchTerminalTab = function(idx, type) {
+    const stdoutPre = document.getElementById(`batch-live-stdout-${idx}`);
+    const stderrPre = document.getElementById(`batch-live-stderr-${idx}`);
+    const stdoutBtn = document.getElementById(`term-tab-stdout-${idx}`);
+    const stderrBtn = document.getElementById(`term-tab-stderr-${idx}`);
+    
+    if (type === 'stdout') {
+        if (stdoutPre) stdoutPre.style.display = "block";
+        if (stderrPre) stderrPre.style.display = "none";
+        if (stdoutBtn) {
+            stdoutBtn.style.background = "rgba(255,255,255,0.1)";
+            stdoutBtn.style.color = "var(--text-primary)";
+        }
+        if (stderrBtn) {
+            stderrBtn.style.background = "rgba(0,0,0,0.25)";
+            stderrBtn.style.color = "var(--text-muted)";
+        }
+    } else {
+        if (stdoutPre) stdoutPre.style.display = "none";
+        if (stderrPre) stderrPre.style.display = "block";
+        if (stdoutBtn) {
+            stdoutBtn.style.background = "rgba(0,0,0,0.25)";
+            stdoutBtn.style.color = "var(--text-muted)";
+        }
+        if (stderrBtn) {
+            stderrBtn.style.background = "rgba(255,255,255,0.1)";
+            stderrBtn.style.color = "var(--text-primary)";
+        }
     }
 };
 
@@ -1949,13 +2014,25 @@ function renderLedgerList() {
         const displayStyle = containsSelected ? "block" : "none";
         
         const notes = (ledgerData.batch_notes && ledgerData.batch_notes[batch.id]) || "";
+        const isLocked = localStorage.getItem("batch_lock_" + batch.id) === "true";
+        const lockIcon = isLocked ? "🔒" : "🔓";
+        const lockTitle = isLocked ? "Unlock Batch Results" : "Lock Batch Results (Mark Reviewed)";
+        const containerStyle = isLocked 
+            ? "border: 1px solid rgba(16,185,129,0.25); border-radius: var(--border-radius-sm); margin-bottom: 0.5rem; background: rgba(16,185,129,0.02); opacity: 0.85;"
+            : "border: 1px solid rgba(255,255,255,0.05); border-radius: var(--border-radius-sm); margin-bottom: 0.5rem; background: rgba(255,255,255,0.01);";
+        const headerStyle = isLocked
+            ? "display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(16,185,129,0.05);"
+            : "display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(255,255,255,0.02);";
+        
         batchHTML += `
-            <div class="batch-group-container" style="border: 1px solid rgba(255,255,255,0.05); border-radius: var(--border-radius-sm); margin-bottom: 0.5rem; background: rgba(255,255,255,0.01);">
-                <div class="batch-group-header" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(255,255,255,0.02);">
-                    <div class="batch-group-title" style="display: flex; align-items: center; gap: 0.3rem;">
+            <div class="batch-group-container" style="${containerStyle}">
+                <div class="batch-group-header" style="${headerStyle}">
+                    <div class="batch-group-title" style="display: flex; align-items: center; gap: 0.35rem;">
                         <span class="folder-icon" onclick="toggleBatchGroupExpansion('${batch.id}')" style="cursor: pointer;">📂</span>
-                        <strong onclick="toggleBatchGroupExpansion('${batch.id}')" style="cursor: pointer;">${escapeHtml(batch.name)}</strong>
-                        <span onclick="event.stopPropagation(); renameBatchGroup('${batch.id}', \`${escapeHtml(batch.name.replace(/`/g, '\\`'))}\`)" title="Rename Batch" style="cursor: pointer; font-size: 0.7rem; margin-left: 0.2rem; color: var(--accent-primary); opacity: 0.7; user-select: none;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">✏️</span>
+                        <strong onclick="toggleBatchGroupExpansion('${batch.id}')" style="cursor: pointer; color: ${isLocked ? '#10b981' : 'var(--text-primary)'};">${escapeHtml(batch.name)}</strong>
+                        <span onclick="event.stopPropagation(); renameBatchGroup('${batch.id}', \`${escapeHtml(batch.name.replace(/`/g, '\\`'))}\`)" title="Rename Batch" style="cursor: pointer; font-size: 0.7rem; color: var(--accent-primary); opacity: 0.7; user-select: none;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">✏️</span>
+                        <span onclick="event.stopPropagation(); toggleBatchLock('${batch.id}')" title="${lockTitle}" style="cursor: pointer; font-size: 0.75rem; user-select: none; margin-left: 0.2rem;">${lockIcon}</span>
+                        ${isLocked ? `<span style="font-size:0.55rem; font-weight:bold; color:#10b981; background:rgba(16,185,129,0.15); padding:0.05rem 0.25rem; border-radius:3px; text-transform:uppercase; letter-spacing:0.3px; user-select:none;">Reviewed</span>` : ''}
                     </div>
                     <div class="batch-group-stats" style="display: flex; align-items: center; gap: 0.4rem;">
                         <span class="status-indicator completed" style="padding:0.1rem 0.3rem; font-size:0.65rem;">${safe} Safe</span>
@@ -2060,23 +2137,7 @@ function selectLedgerItem(runId) {
     document.getElementById("ins-vector").textContent = run.exfil_vector || "None";
     document.getElementById("ins-prompt").textContent = run.prompt;
     
-    // Show/hide batch metadata panel based on category
-    const batchMetaContainer = document.getElementById("ins-batch-meta-container");
-    if (batchMetaContainer) {
-        if (run.category === "batch" && run.batch_id) {
-            batchMetaContainer.style.display = "flex";
-            const nameDisplay = document.getElementById("ins-batch-name-display");
-            const descEl = document.getElementById("ins-batch-desc");
-            if (nameDisplay) {
-                nameDisplay.textContent = run.batch_name || `Batch (${run.batch_id.split('_').pop()})`;
-            }
-            if (descEl) {
-                descEl.textContent = run.batch_desc || "No description provided.";
-            }
-        } else {
-            batchMetaContainer.style.display = "none";
-        }
-    }
+
     
     document.getElementById("ins-stdout-pre").textContent = run.stdout || "[No Stdout recorded]";
     document.getElementById("ins-stderr-pre").textContent = run.stderr || "[No Stderr traces recorded]";
