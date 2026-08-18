@@ -1738,6 +1738,31 @@ window.saveBatchNotes = async function(batchId, notesValue) {
     }
 };
 
+window.saveBatchMetaName = async function(batchId, newName) {
+    if (!batchId) return;
+    try {
+        await fetch(`/api/batch/${batchId}/meta`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: jsonPayload({ name: newName })
+        });
+        
+        // Update local state in memory
+        ledgerData.runs.forEach(run => {
+            if (run.batch_id === batchId) {
+                run.batch_name = newName;
+            }
+        });
+        
+        // Refresh UI components reactively
+        updateBatchFilterOptions();
+        updateBatchLoadSelectorOptions();
+        renderLedgerList();
+    } catch (e) {
+        console.error("Error saving batch metadata name:", e);
+    }
+};
+
 window.deleteBatchGroup = async function(batchId) {
     if (!confirm("Are you sure you want to permanently delete this entire batch execution folder and all its runs?")) return;
     try {
@@ -2014,6 +2039,30 @@ function selectLedgerItem(runId) {
     document.getElementById("ins-exit").textContent = run.exit_code === null ? "N/A" : run.exit_code;
     document.getElementById("ins-vector").textContent = run.exfil_vector || "None";
     document.getElementById("ins-prompt").textContent = run.prompt;
+    
+    // Show/hide batch metadata panel based on category
+    const batchMetaContainer = document.getElementById("ins-batch-meta-container");
+    if (batchMetaContainer) {
+        if (run.category === "batch" && run.batch_id) {
+            batchMetaContainer.style.display = "flex";
+            const nameInput = document.getElementById("ins-batch-name-input");
+            const descEl = document.getElementById("ins-batch-desc");
+            if (nameInput) {
+                nameInput.value = run.batch_name || "";
+                nameInput.onblur = () => saveBatchMetaName(run.batch_id, nameInput.value);
+                nameInput.onkeydown = (e) => {
+                    if (e.key === "Enter") {
+                        nameInput.blur();
+                    }
+                };
+            }
+            if (descEl) {
+                descEl.textContent = run.batch_desc || "No description provided.";
+            }
+        } else {
+            batchMetaContainer.style.display = "none";
+        }
+    }
     
     document.getElementById("ins-stdout-pre").textContent = run.stdout || "[No Stdout recorded]";
     document.getElementById("ins-stderr-pre").textContent = run.stderr || "[No Stderr traces recorded]";

@@ -739,6 +739,29 @@ def save_batch_notes(batch_id: str, req: BatchNotesRequest):
         conn.close()
     return {"status": "success"}
 
+class BatchMetaRequest(BaseModel):
+    name: str = None
+    desc: str = None
+
+@app.put("/api/batch/{batch_id}/meta")
+def save_batch_meta(batch_id: str, req: BatchMetaRequest):
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    try:
+        if req.name is not None and req.desc is not None:
+            cursor.execute("UPDATE runs SET batch_name = ?, batch_desc = ? WHERE batch_id = ?", (req.name, req.desc, batch_id))
+        elif req.name is not None:
+            cursor.execute("UPDATE runs SET batch_name = ? WHERE batch_id = ?", (req.name, batch_id))
+        elif req.desc is not None:
+            cursor.execute("UPDATE runs SET batch_desc = ? WHERE batch_id = ?", (req.desc, batch_id))
+        conn.commit()
+    except Exception as e:
+        print(f"Error saving batch metadata: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save batch metadata")
+    finally:
+        conn.close()
+    return {"status": "success"}
+
 @app.delete("/api/ledger/batch/{batch_id}")
 def delete_batch_record(batch_id: str):
     conn = get_db_conn()
