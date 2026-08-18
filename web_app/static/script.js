@@ -1230,6 +1230,11 @@ async function launchBatchRuns() {
     currentQueueIndex = 0;
     activeWorkersCount = 0;
     
+    const termContainer = document.getElementById("batch-terminals-container");
+    if (termContainer) {
+        termContainer.innerHTML = `<div class="table-empty" id="batch-terminals-empty" style="grid-column: 1 / -1; width: 100%; text-align: center; color: var(--text-muted);">No active runs. Select scenario scope and launch batch.</div>`;
+    }
+    
     renderQueueTable();
     updateBatchProgressUI();
     await saveBatchState();
@@ -1246,7 +1251,7 @@ function renderQueueTable() {
     }
 
     tbody.innerHTML = batchQueue.map((item, idx) => `
-        <tr class="${idx === currentQueueIndex && isBatchRunning ? 'table-row-active' : ''}">
+        <tr class="${item.status === 'running' ? 'table-row-active' : ''}">
             <td>
                 <span class="status-indicator ${item.status}">${item.status}</span>
             </td>
@@ -1329,6 +1334,48 @@ async function processNextBatchItem() {
     }
 }
 
+function ensureTerminalCardExists(idx, item) {
+    const container = document.getElementById("batch-terminals-container");
+    const emptyState = document.getElementById("batch-terminals-empty");
+    if (emptyState) emptyState.style.display = "none";
+
+    let term = document.getElementById(`batch-terminal-${idx}`);
+    if (!term) {
+        term = document.createElement("div");
+        term.id = `batch-terminal-${idx}`;
+        term.className = "terminal-card glass-panel";
+        term.style = "padding: 0.75rem; display: flex; flex-direction: column; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; margin-bottom: 0.5rem;";
+        term.innerHTML = `
+            <div style="font-size: 0.75rem; font-weight: 700; color: var(--accent-primary); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.3rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <span>🖥️ ${escapeHtml(item.name)} (${item.agent})</span>
+                <span id="term-status-badge-${idx}" style="font-size:0.65rem; padding:0.05rem 0.35rem; border-radius:3px; background:rgba(2,132,199,0.15); color:var(--accent-primary); font-weight:bold;">RUNNING</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                <div>
+                    <div style="font-size: 0.6rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.15rem; text-transform: uppercase;">STDOUT</div>
+                    <pre id="batch-live-stdout-${idx}" style="height: 100px; overflow-y: auto; padding: 0.35rem; background: #000; color: #10b981; border-radius: 4px; font-size: 0.7rem; font-family: monospace; white-space: pre-wrap; margin: 0; border: 1px solid rgba(255,255,255,0.03);">Streaming output...</pre>
+                </div>
+                <div>
+                    <div style="font-size: 0.6rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.15rem; text-transform: uppercase;">STDERR / Traces</div>
+                    <pre id="batch-live-stderr-${idx}" style="height: 100px; overflow-y: auto; padding: 0.35rem; background: #000; color: #f59e0b; border-radius: 4px; font-size: 0.7rem; font-family: monospace; white-space: pre-wrap; margin: 0; border: 1px solid rgba(255,255,255,0.03);">Streaming traces...</pre>
+                </div>
+            </div>
+        `;
+        container.appendChild(term);
+    } else {
+        const badge = document.getElementById(`term-status-badge-${idx}`);
+        if (badge) {
+            badge.textContent = "RUNNING";
+            badge.style.background = "rgba(2,132,199,0.15)";
+            badge.style.color = "var(--accent-primary)";
+        }
+        const termStdout = document.getElementById(`batch-live-stdout-${idx}`);
+        const termStderr = document.getElementById(`batch-live-stderr-${idx}`);
+        if (termStdout) termStdout.textContent = "Streaming output...";
+        if (termStderr) termStderr.textContent = "Streaming traces...";
+    }
+}
+
 async function launchQueueItem(idx) {
     const item = batchQueue[idx];
     if (!item) return;
@@ -1337,6 +1384,8 @@ async function launchQueueItem(idx) {
     renderQueueTable();
     updateBatchProgressUI();
     await saveBatchState();
+
+    ensureTerminalCardExists(idx, item);
 
     try {
         const res = await fetch("/api/run", {
@@ -1363,6 +1412,14 @@ async function launchQueueItem(idx) {
     } catch (e) {
         item.status = "failed";
         activeWorkersCount--;
+        
+        const badge = document.getElementById(`term-status-badge-${idx}`);
+        if (badge) {
+            badge.textContent = "LAUNCH ERROR";
+            badge.style.background = "rgba(239, 68, 68, 0.15)";
+            badge.style.color = "#ef4444";
+        }
+        
         renderQueueTable();
         await saveBatchState();
         processNextBatchItem();
@@ -1393,17 +1450,35 @@ async function pollBatchItemProgress(idx, runId) {
         item.duration = `${data.duration}s`;
         renderQueueTable();
         
-        const liveOut = document.getElementById("batch-live-stdout");
-        const liveErr = document.getElementById("batch-live-stderr");
-        if (liveOut && liveErr && data.stdout) {
-            liveOut.textContent = `[Run: ${item.name} (${item.agent})]\n${data.stdout}`;
-            liveErr.textContent = `[Run: ${item.name} (${item.agent})]\n${data.stderr}`;
-            liveOut.scrollTop = liveOut.scrollHeight;
-            liveErr.scrollTop = liveErr.scrollHeight;
+        // Update dynamic console card stdout/stderr
+        const termStdout = document.getElementById(`batch-live-stdout-${idx}`);
+        const termStderr = document.getElementById(`batch-live-stderr-${idx}`);
+        if (termStdout && data.stdout) {
+            termStdout.textContent = data.stdout;
+            termStdout.scrollTop = termStdout.scrollHeight;
+        }
+        if (termStderr && data.stderr) {
+            termStderr.textContent = data.stderr;
+            termStderr.scrollTop = termStderr.scrollHeight;
         }
         
         if (data.status === "completed" || data.status === "failed") {
             item.status = data.status === "completed" ? "completed" : "failed";
+            
+            // Update status badge on terminal panel
+            const badge = document.getElementById(`term-status-badge-${idx}`);
+            if (badge) {
+                if (data.status === "completed") {
+                    badge.textContent = "SUCCESS";
+                    badge.style.background = "rgba(16, 185, 129, 0.15)";
+                    badge.style.color = "#10b981";
+                } else {
+                    badge.textContent = "FAILED";
+                    badge.style.background = "rgba(239, 68, 68, 0.15)";
+                    badge.style.color = "#ef4444";
+                }
+            }
+            
             activeWorkersCount--;
             renderQueueTable();
             await saveBatchState();
@@ -1429,6 +1504,8 @@ window.retryQueueItem = async function(idx) {
     item.duration = "0.0s";
     renderQueueTable();
     await saveBatchState();
+    
+    ensureTerminalCardExists(idx, item);
     
     try {
         const res = await fetch("/api/run", {
@@ -1469,18 +1546,35 @@ async function pollSingleQueueItem(idx, runId) {
         if (!item) return;
         
         item.duration = `${data.duration}s`;
+        renderQueueTable();
         
-        const liveOut = document.getElementById("batch-live-stdout");
-        const liveErr = document.getElementById("batch-live-stderr");
-        if (liveOut && liveErr) {
-            liveOut.textContent = data.stdout || "Streaming output...";
-            liveErr.textContent = data.stderr || "Streaming traces...";
-            liveOut.scrollTop = liveOut.scrollHeight;
-            liveErr.scrollTop = liveErr.scrollHeight;
+        const termStdout = document.getElementById(`batch-live-stdout-${idx}`);
+        const termStderr = document.getElementById(`batch-live-stderr-${idx}`);
+        if (termStdout && data.stdout) {
+            termStdout.textContent = data.stdout;
+            termStdout.scrollTop = termStdout.scrollHeight;
+        }
+        if (termStderr && data.stderr) {
+            termStderr.textContent = data.stderr;
+            termStderr.scrollTop = termStderr.scrollHeight;
         }
         
         if (data.status === "completed" || data.status === "failed") {
             item.status = data.status === "completed" ? "completed" : "failed";
+            
+            const badge = document.getElementById(`term-status-badge-${idx}`);
+            if (badge) {
+                if (data.status === "completed") {
+                    badge.textContent = "SUCCESS";
+                    badge.style.background = "rgba(16, 185, 129, 0.15)";
+                    badge.style.color = "#10b981";
+                } else {
+                    badge.textContent = "FAILED";
+                    badge.style.background = "rgba(239, 68, 68, 0.15)";
+                    badge.style.color = "#ef4444";
+                }
+            }
+            
             renderQueueTable();
             await saveBatchState();
             await loadLedger(); // refresh ledger list
